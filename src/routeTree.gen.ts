@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UploadRouteImport } from './routes/upload'
+import { Route as StatisticsRouteImport } from './routes/statistics'
 import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as IndexRouteImport } from './routes/index'
@@ -17,6 +18,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',
   path: '/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatisticsRoute = StatisticsRouteImport.update({
+  id: '/statistics',
+  path: '/statistics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FeedbackRoute = FeedbackRouteImport.update({
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/compare': typeof CompareRoute
   '/feedback': typeof FeedbackRoute
+  '/statistics': typeof StatisticsRoute
   '/upload': typeof UploadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/compare': typeof CompareRoute
   '/feedback': typeof FeedbackRoute
+  '/statistics': typeof StatisticsRoute
   '/upload': typeof UploadRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/compare': typeof CompareRoute
   '/feedback': typeof FeedbackRoute
+  '/statistics': typeof StatisticsRoute
   '/upload': typeof UploadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/compare' | '/feedback' | '/upload'
+  fullPaths: '/' | '/compare' | '/feedback' | '/statistics' | '/upload'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/compare' | '/feedback' | '/upload'
-  id: '__root__' | '/' | '/compare' | '/feedback' | '/upload'
+  to: '/' | '/compare' | '/feedback' | '/statistics' | '/upload'
+  id: '__root__' | '/' | '/compare' | '/feedback' | '/statistics' | '/upload'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CompareRoute: typeof CompareRoute
   FeedbackRoute: typeof FeedbackRoute
+  StatisticsRoute: typeof StatisticsRoute
   UploadRoute: typeof UploadRoute
 }
 
@@ -76,6 +86,13 @@ declare module '@tanstack/react-router' {
       path: '/upload'
       fullPath: '/upload'
       preLoaderRoute: typeof UploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/statistics': {
+      id: '/statistics'
+      path: '/statistics'
+      fullPath: '/statistics'
+      preLoaderRoute: typeof StatisticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/feedback': {
@@ -106,6 +123,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CompareRoute: CompareRoute,
   FeedbackRoute: FeedbackRoute,
+  StatisticsRoute: StatisticsRoute,
   UploadRoute: UploadRoute,
 }
 export const routeTree = rootRouteImport
