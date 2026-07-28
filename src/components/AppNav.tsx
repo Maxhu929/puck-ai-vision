@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Snowflake } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const links = [
   { to: "/", label: "Home" },
@@ -11,6 +13,16 @@ const links = [
 ] as const;
 
 export function AppNav() {
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setEmail(data.session?.user.email ?? null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setEmail(session?.user.email ?? null);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <nav className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3">
@@ -33,6 +45,31 @@ export function AppNav() {
             </li>
           ))}
         </ul>
+        <div className="ml-auto flex items-center gap-2 text-sm">
+          {email ? (
+            <>
+              <span className="hidden text-muted-foreground sm:inline">{email}</span>
+              <button
+                type="button"
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  window.location.href = "/";
+                }}
+                className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Sign out
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/auth"
+              search={{ next: undefined }}
+              className="rounded-md bg-secondary px-3 py-1.5 text-foreground transition-colors hover:bg-secondary/80"
+            >
+              Sign in
+            </Link>
+          )}
+        </div>
       </nav>
     </header>
   );
