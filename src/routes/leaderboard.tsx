@@ -1,14 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { Crown, MapPin } from "lucide-react";
 import { PageShell } from "@/components/AppNav";
-import { players, type Player } from "@/lib/hockey-data";
+import { listPlayers, type PlayerRecord } from "@/lib/players.functions";
+
+const playersQuery = queryOptions({
+  queryKey: ["players"],
+  queryFn: () => listPlayers(),
+});
 
 const title = "Grade Leaderboard | Hockey Video Analyzer";
 const description =
   "See which players rank highest by AI grade, and open a profile to view their team, position, and full stat line.";
 
 export const Route = createFileRoute("/leaderboard")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(playersQuery),
   head: () => ({
     meta: [
       { title },
@@ -23,10 +30,19 @@ export const Route = createFileRoute("/leaderboard")({
 });
 
 function LeaderboardPage() {
-  const ranked = [...players].sort((a, b) => b.grade - a.grade);
-  const podium = [ranked[1], ranked[0], ranked[2]];
+  const { data } = useSuspenseQuery(playersQuery);
+  const ranked = data.players;
+  const podium = [ranked[1], ranked[0], ranked[2]].filter(Boolean);
   const heights = ["h-24", "h-36", "h-16"];
-  const [selected, setSelected] = useState<Player | null>(null);
+  const [selected, setSelected] = useState<PlayerRecord | null>(null);
+
+  if (ranked.length === 0) {
+    return (
+      <PageShell title="Grade leaderboard" subtitle="Ranked by AI grade across all analyzed footage.">
+        <p className="text-sm text-muted-foreground">No players yet.</p>
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell title="Grade leaderboard" subtitle="Ranked by AI grade across all analyzed footage.">
