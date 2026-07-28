@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from "recharts";
 import { PageShell } from "@/components/AppNav";
 import { Button } from "@/components/ui/button";
@@ -10,13 +11,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { players } from "@/lib/hockey-data";
+import { listPlayers } from "@/lib/players.functions";
+
+const playersQuery = queryOptions({
+  queryKey: ["players"],
+  queryFn: () => listPlayers(),
+});
 
 const title = "Compare Players Side by Side | Hockey Video Analyzer";
 const description =
   "Put your hockey stats head-to-head against any player with a comparison table and skill radar chart.";
 
 export const Route = createFileRoute("/compare")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(playersQuery),
   head: () => ({
     meta: [
       { title },
@@ -31,22 +38,33 @@ export const Route = createFileRoute("/compare")({
 });
 
 function ComparePage() {
-  const you = players[0];
-  const [otherId, setOtherId] = useState(players[1].id);
-  const [shown, setShown] = useState<string | null>(players[1].id);
-  const other = players.find((p) => p.id === (shown ?? otherId)) ?? players[1];
+  const { data } = useSuspenseQuery(playersQuery);
+  const players = data.players;
+  const you = players.find((p) => p.slug === "you") ?? players[0];
+  const others = players.filter((p) => p.id !== you?.id);
+  const [otherId, setOtherId] = useState<string>(others[0]?.id ?? "");
+  const [shown, setShown] = useState<string | null>(others[0]?.id ?? null);
+  const other = players.find((p) => p.id === (shown ?? otherId)) ?? others[0];
 
   const radarData = useMemo(
     () =>
-      you.radar.map((r, i) => ({
+      (you?.radar ?? []).map((r, i) => ({
         metric: r.metric,
         you: r.value,
-        other: other.radar[i].value,
+        other: other?.radar[i]?.value ?? 0,
       })),
     [you, other],
   );
 
-  const statKeys = Object.keys(you.stats);
+  const statKeys = Object.keys(you?.stats ?? {});
+
+  if (!you || !other) {
+    return (
+      <PageShell title="Compare" subtitle="You vs. anyone in the league.">
+        <p className="text-sm text-muted-foreground">Not enough players to compare yet.</p>
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell title="Compare" subtitle="You vs. anyone in the league.">
@@ -63,7 +81,7 @@ function ComparePage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {players.slice(1).map((p) => (
+              {others.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.name} — {p.team}
                 </SelectItem>

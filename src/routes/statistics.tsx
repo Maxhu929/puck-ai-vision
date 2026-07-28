@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import {
   Line,
   LineChart,
@@ -10,12 +11,19 @@ import {
 } from "recharts";
 import { PageShell } from "@/components/AppNav";
 import { keyStats, shiftTrend, shotHeatMap } from "@/lib/hockey-data";
+import { listPlayerGames } from "@/lib/players.functions";
+
+const gamesQuery = queryOptions({
+  queryKey: ["player-games"],
+  queryFn: () => listPlayerGames(),
+});
 
 const title = "Advanced Hockey Statistics & Shot Heat Map";
 const description =
   "Key performance metrics, grade trends over the season, and a shot heat map generated from your analyzed game film.";
 
 export const Route = createFileRoute("/statistics")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(gamesQuery),
   head: () => ({
     meta: [
       { title },
@@ -30,6 +38,8 @@ export const Route = createFileRoute("/statistics")({
 });
 
 function StatisticsPage() {
+  const { data } = useSuspenseQuery(gamesQuery);
+  const trend = data.games.length > 0 ? data.games : shiftTrend;
   return (
     <PageShell title="Advanced statistics" subtitle="Everything the AI measured across your last six games.">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -49,7 +59,7 @@ function StatisticsPage() {
           <h2 className="text-lg font-semibold">Grade trend</h2>
           <div className="mt-4 h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={shiftTrend}>
+              <LineChart data={trend}>
                 <CartesianGrid stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="game" tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
                 <YAxis domain={[60, 100]} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />

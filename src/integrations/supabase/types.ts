@@ -14,6 +14,89 @@ export type Database = {
   }
   public: {
     Tables: {
+      player_games: {
+        Row: {
+          created_at: string
+          game_label: string
+          grade: number
+          id: string
+          played_on: string | null
+          player_id: string
+          top_speed: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          game_label: string
+          grade?: number
+          id?: string
+          played_on?: string | null
+          player_id: string
+          top_speed?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          game_label?: string
+          grade?: number
+          id?: string
+          played_on?: string | null
+          player_id?: string
+          top_speed?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_games_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      players: {
+        Row: {
+          created_at: string
+          grade: number
+          id: string
+          location: string
+          name: string
+          position: string
+          radar: Json
+          slug: string
+          stats: Json
+          team: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          grade?: number
+          id?: string
+          location?: string
+          name: string
+          position?: string
+          radar?: Json
+          slug: string
+          stats?: Json
+          team?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          grade?: number
+          id?: string
+          location?: string
+          name?: string
+          position?: string
+          radar?: Json
+          slug?: string
+          stats?: Json
+          team?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       video_analyses: {
         Row: {
           categories: Json
