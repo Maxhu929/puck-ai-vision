@@ -102,7 +102,7 @@ function Index() {
                 </p>
               </div>
               <span className="font-display text-xl font-bold text-turf">{s.grade}</span>
-              <Link to="/feedback" className="text-sm text-ice hover:underline">
+              <Link to="/feedback" search={{ id: undefined }} className="text-sm text-ice hover:underline">
                 View feedback
               </Link>
             </li>
