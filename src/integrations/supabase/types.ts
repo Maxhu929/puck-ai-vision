@@ -14,7 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      video_analyses: {
+        Row: {
+          categories: Json
+          created_at: string
+          error_message: string | null
+          file_name: string | null
+          focus_areas: string[]
+          id: string
+          jersey_number: string | null
+          notes: Json
+          overall_grade: string | null
+          player_name: string
+          status: string
+          summary: string | null
+          tl_index_id: string | null
+          tl_task_id: string | null
+          tl_video_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          categories?: Json
+          created_at?: string
+          error_message?: string | null
+          file_name?: string | null
+          focus_areas?: string[]
+          id?: string
+          jersey_number?: string | null
+          notes?: Json
+          overall_grade?: string | null
+          player_name?: string
+          status?: string
+          summary?: string | null
+          tl_index_id?: string | null
+          tl_task_id?: string | null
+          tl_video_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          categories?: Json
+          created_at?: string
+          error_message?: string | null
+          file_name?: string | null
+          focus_areas?: string[]
+          id?: string
+          jersey_number?: string | null
+          notes?: Json
+          overall_grade?: string | null
+          player_name?: string
+          status?: string
+          summary?: string | null
+          tl_index_id?: string | null
+          tl_task_id?: string | null
+          tl_video_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
