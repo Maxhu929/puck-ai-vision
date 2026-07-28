@@ -33,7 +33,7 @@ export async function ensureIndex(): Promise<string> {
       index_name: INDEX_NAME,
       models: [
         { model_name: "pegasus1.2", model_options: ["visual", "audio"] },
-        { model_name: "marengo2.7", model_options: ["visual", "audio"] },
+        { model_name: "marengo3.0", model_options: ["visual", "audio"] },
       ],
     }),
   });
