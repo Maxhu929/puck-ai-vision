@@ -10,6 +10,7 @@ const links = [
   { to: "/compare", label: "Compare" },
   { to: "/statistics", label: "Statistics" },
   { to: "/leaderboard", label: "Leaderboard" },
+  { to: "/nutrition", label: "Nutrition" },
 ] as const;
 
 export function AppNav() {
