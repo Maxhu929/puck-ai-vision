@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as StatisticsRouteImport } from './routes/statistics'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as NutritionRouteImport } from './routes/nutrition'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as FeedbackRouteImport } from './routes/feedback'
@@ -37,6 +38,11 @@ const StatisticsRoute = StatisticsRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NutritionRoute = NutritionRouteImport.update({
+  id: '/nutrition',
+  path: '/nutrition',
   getParentRoute: () => rootRouteImport,
 } as any)
 const McpRoute = McpRouteImport.update({
@@ -105,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/feedback': typeof FeedbackRoute
   '/leaderboard': typeof LeaderboardRoute
   '/mcp': typeof McpRoute
+  '/nutrition': typeof NutritionRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/statistics': typeof StatisticsRoute
   '/upload': typeof UploadRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByTo {
   '/feedback': typeof FeedbackRoute
   '/leaderboard': typeof LeaderboardRoute
   '/mcp': typeof McpRoute
+  '/nutrition': typeof NutritionRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/statistics': typeof StatisticsRoute
   '/upload': typeof UploadRoute
@@ -138,6 +146,7 @@ export interface FileRoutesById {
   '/feedback': typeof FeedbackRoute
   '/leaderboard': typeof LeaderboardRoute
   '/mcp': typeof McpRoute
+  '/nutrition': typeof NutritionRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/statistics': typeof StatisticsRoute
   '/upload': typeof UploadRoute
@@ -156,6 +165,7 @@ export interface FileRouteTypes {
     | '/feedback'
     | '/leaderboard'
     | '/mcp'
+    | '/nutrition'
     | '/sitemap.xml'
     | '/statistics'
     | '/upload'
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | '/feedback'
     | '/leaderboard'
     | '/mcp'
+    | '/nutrition'
     | '/sitemap.xml'
     | '/statistics'
     | '/upload'
@@ -188,6 +199,7 @@ export interface FileRouteTypes {
     | '/feedback'
     | '/leaderboard'
     | '/mcp'
+    | '/nutrition'
     | '/sitemap.xml'
     | '/statistics'
     | '/upload'
@@ -205,6 +217,7 @@ export interface RootRouteChildren {
   FeedbackRoute: typeof FeedbackRoute
   LeaderboardRoute: typeof LeaderboardRoute
   McpRoute: typeof McpRoute
+  NutritionRoute: typeof NutritionRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StatisticsRoute: typeof StatisticsRoute
   UploadRoute: typeof UploadRoute
@@ -236,6 +249,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nutrition': {
+      id: '/nutrition'
+      path: '/nutrition'
+      fullPath: '/nutrition'
+      preLoaderRoute: typeof NutritionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mcp': {
@@ -325,6 +345,7 @@ const rootRouteChildren: RootRouteChildren = {
   FeedbackRoute: FeedbackRoute,
   LeaderboardRoute: LeaderboardRoute,
   McpRoute: McpRoute,
+  NutritionRoute: NutritionRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StatisticsRoute: StatisticsRoute,
   UploadRoute: UploadRoute,
