@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, AlertTriangle, PlayCircle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, PlayCircle, Target } from "lucide-react";
 import { PageShell } from "@/components/AppNav";
 import { Progress } from "@/components/ui/progress";
 import { feedbackCategories, timelineFeedback } from "@/lib/hockey-data";
 import { useQuery } from "@tanstack/react-query";
 import { getAnalysis } from "@/lib/analysis.functions";
+import { suggestDrills } from "@/lib/drills";
 
 const title = "AI Feedback & Shift Grades | Hockey Video Analyzer";
 const description =
@@ -39,6 +40,7 @@ function FeedbackPage() {
   const notes = record?.notes.length ? record.notes : timelineFeedback;
   const categories = record?.categories.length ? record.categories : feedbackCategories;
   const grade = record?.overallGrade ?? "A-";
+  const drills = suggestDrills(categories);
   const subtitle = record
     ? `${record.playerName}${record.jerseyNumber ? ` · #${record.jerseyNumber}` : ""}`
     : "Bantam AA vs. Northside — 2nd Period · 12:40";
@@ -75,6 +77,31 @@ function FeedbackPage() {
                 </div>
               </article>
             ))}
+          </div>
+
+          <div className="space-y-3">
+            <h2 className="text-xl font-semibold">Suggested drills</h2>
+            <p className="text-sm text-muted-foreground">
+              Targeted at the lowest-scoring categories from this session.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {drills.map((d) => (
+                <article key={d.name} className="surface-card rounded-xl px-5 py-4">
+                  <div className="flex items-start gap-3">
+                    <Target className="mt-0.5 size-5 shrink-0 text-ice" />
+                    <div>
+                      <p className="text-sm font-medium">{d.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        <span className="text-ice">{d.focus}</span>
+                        <span className="mx-2">·</span>
+                        {d.reps}
+                      </p>
+                      <p className="mt-2 text-sm text-muted-foreground">{d.detail}</p>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
 
