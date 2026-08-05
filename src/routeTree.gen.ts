@@ -15,6 +15,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as NutritionRouteImport } from './routes/nutrition'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as GearRouteImport } from './routes/gear'
 import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -53,6 +54,11 @@ const McpRoute = McpRouteImport.update({
 const LeaderboardRoute = LeaderboardRouteImport.update({
   id: '/leaderboard',
   path: '/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GearRoute = GearRouteImport.update({
+  id: '/gear',
+  path: '/gear',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FeedbackRoute = FeedbackRouteImport.update({
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/compare': typeof CompareRoute
   '/feedback': typeof FeedbackRoute
+  '/gear': typeof GearRoute
   '/leaderboard': typeof LeaderboardRoute
   '/mcp': typeof McpRoute
   '/nutrition': typeof NutritionRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/compare': typeof CompareRoute
   '/feedback': typeof FeedbackRoute
+  '/gear': typeof GearRoute
   '/leaderboard': typeof LeaderboardRoute
   '/mcp': typeof McpRoute
   '/nutrition': typeof NutritionRoute
@@ -144,6 +152,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/compare': typeof CompareRoute
   '/feedback': typeof FeedbackRoute
+  '/gear': typeof GearRoute
   '/leaderboard': typeof LeaderboardRoute
   '/mcp': typeof McpRoute
   '/nutrition': typeof NutritionRoute
@@ -163,6 +172,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/compare'
     | '/feedback'
+    | '/gear'
     | '/leaderboard'
     | '/mcp'
     | '/nutrition'
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/compare'
     | '/feedback'
+    | '/gear'
     | '/leaderboard'
     | '/mcp'
     | '/nutrition'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/compare'
     | '/feedback'
+    | '/gear'
     | '/leaderboard'
     | '/mcp'
     | '/nutrition'
@@ -215,6 +227,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CompareRoute: typeof CompareRoute
   FeedbackRoute: typeof FeedbackRoute
+  GearRoute: typeof GearRoute
   LeaderboardRoute: typeof LeaderboardRoute
   McpRoute: typeof McpRoute
   NutritionRoute: typeof NutritionRoute
@@ -270,6 +283,13 @@ declare module '@tanstack/react-router' {
       path: '/leaderboard'
       fullPath: '/leaderboard'
       preLoaderRoute: typeof LeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gear': {
+      id: '/gear'
+      path: '/gear'
+      fullPath: '/gear'
+      preLoaderRoute: typeof GearRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/feedback': {
@@ -343,6 +363,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   CompareRoute: CompareRoute,
   FeedbackRoute: FeedbackRoute,
+  GearRoute: GearRoute,
   LeaderboardRoute: LeaderboardRoute,
   McpRoute: McpRoute,
   NutritionRoute: NutritionRoute,
