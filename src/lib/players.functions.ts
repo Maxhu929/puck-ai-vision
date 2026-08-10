@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 
 export type PlayerRecord = {
   id: string;
@@ -78,3 +79,22 @@ export const listPlayerGames = createServerFn({ method: "GET" }).handler(async (
     })),
   };
 });
+
+/** Game-by-game log for a specific player. */
+export const getPlayerGames = createServerFn({ method: "GET" })
+  .inputValidator((input) => z.object({ playerId: z.string().uuid() }).parse(input))
+  .handler(async ({ data }) => {
+    const supabase = await publicClient();
+    const { data: rows } = await supabase
+      .from("player_games")
+      .select("game_label, grade, top_speed")
+      .eq("player_id", data.playerId)
+      .order("played_on", { ascending: true });
+    return {
+      games: (rows ?? []).map((g: any) => ({
+        game: g.game_label,
+        grade: g.grade,
+        speed: g.top_speed === null ? null : Number(g.top_speed),
+      })),
+    };
+  });
