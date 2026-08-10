@@ -12,6 +12,7 @@ const links = [
   { to: "/leaderboard", label: "Leaderboard" },
   { to: "/nutrition", label: "Nutrition" },
   { to: "/gear", label: "Gear" },
+  { to: "/chat", label: "Chat" },
 ] as const;
 
 export function AppNav() {
