@@ -89,9 +89,9 @@ export const renameThread = createServerFn({ method: "POST" })
 
 export const deleteThread = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
+  .inputValidator((input) => threadId.parse(input))
   .handler(async ({ data, context }) => {
-    const { id } = threadId.parse(data);
-    const { error } = await context.supabase.from("threads").delete().eq("id", id).eq("user_id", context.userId);
+    const { error } = await context.supabase.from("threads").delete().eq("id", data.id).eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
