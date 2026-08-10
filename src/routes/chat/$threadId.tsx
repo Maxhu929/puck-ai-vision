@@ -24,9 +24,12 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { getThreadMessages } from "@/lib/chat.functions";
 import { AppNav } from "@/components/AppNav";
-import { MessageSquare } from "lucide-react";
+import coachBot from "@/assets/coach-bot.png";
 import { supabase } from "@/integrations/supabase/client";
 import type { ChatMessage } from "@/lib/chat.functions";
+
+const title = "Coach Bot — Hockey Video Analyzer";
+const description = "Chat with the Rink IQ Coach about players, nutrition, gear, and video analysis.";
 
 function toUIMessages(messages: ChatMessage[]) {
   return messages.map((m) => ({
@@ -39,6 +42,16 @@ function toUIMessages(messages: ChatMessage[]) {
 }
 
 export const Route = createFileRoute("/chat/$threadId")({
+  head: () => ({
+    meta: [
+      { title },
+      { name: "description", content: description },
+      { property: "og:title", content: title },
+      { property: "og:description", content: description },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   loader: async ({ params }) => {
     return getThreadMessages({ data: { id: params.threadId } });
   },
@@ -89,7 +102,7 @@ function ChatThreadPage() {
             <ConversationContent>
               {chat.messages.length === 0 ? (
                 <ConversationEmptyState
-                  icon={<MessageSquare className="size-8 text-ice" />}
+                  icon={<img src={coachBot} alt="Rink IQ Coach" className="size-20" loading="lazy" />}
                   title="Ask Rink IQ Coach"
                   description="Try: 'What should a 16-year-old forward eat on game day?' or 'Analyze Elias' latest video.'"
                 />
