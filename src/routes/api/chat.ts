@@ -31,8 +31,11 @@ async function getUserFromRequest(request: Request) {
       },
     },
   });
-  supabase.auth.setSession({ access_token: token, refresh_token: "" });
-  const { data } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error) {
+    console.error("[chat] auth error", error.message);
+    return null;
+  }
   return { userId: data.user?.id, supabase };
 }
 
