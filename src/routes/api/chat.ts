@@ -40,7 +40,8 @@ async function getUserFromRequest(request: Request) {
 }
 
 function textFromUIMessage(message: UIMessage) {
-  return (message as any).content ?? message.parts.map((p: any) => (p.type === "text" ? p.text : "")).join("");
+  const partText = message.parts.map((part) => (part.type === "text" ? part.text : "")).join("");
+  return partText || (message as { content?: string }).content || "";
 }
 
 export const Route = createFileRoute("/api/chat")({
@@ -92,7 +93,7 @@ export const Route = createFileRoute("/api/chat")({
                 message: {
                   id: assistant.id,
                   role: "assistant",
-                  content: assistant.content ?? "",
+                  content: textFromUIMessage(assistant),
                   parts: assistant.parts,
                 },
               },

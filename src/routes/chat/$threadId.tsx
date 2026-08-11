@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useEffect, useState } from "react";
+import { Copy } from "lucide-react";
 import {
   Conversation,
   ConversationContent,
@@ -39,6 +40,15 @@ function toUIMessages(messages: ChatMessage[]) {
     parts: (m.parts ?? [{ type: "text", text: m.content }]) as any,
     createdAt: new Date(m.createdAt),
   }));
+}
+
+function getMessageText(message: { content?: string; parts?: Array<{ type: string; text?: string }> }) {
+  const partText = message.parts
+    ?.filter((part) => part.type === "text")
+    .map((part) => part.text ?? "")
+    .join("") ?? "";
+
+  return partText || message.content || "";
 }
 
 export const Route = createFileRoute("/chat/$threadId")({
@@ -107,18 +117,28 @@ function ChatThreadPage() {
                   description="Try: 'What should a 16-year-old forward eat on game day?' or 'Analyze Elias' latest video.'"
                 />
               ) : (
-                chat.messages.map((message) => (
-                  <Message key={message.id} from={message.role}>
-                    <MessageContent>
-                      <MessageResponse>{message.content}</MessageResponse>
-                    </MessageContent>
-                    <MessageToolbar>
-                      <MessageAction label="Copy" onClick={() => navigator.clipboard.writeText(message.content)}>
-                        Copy
-                      </MessageAction>
-                    </MessageToolbar>
-                  </Message>
-                ))
+                chat.messages.map((message) => {
+                  const text = getMessageText(message);
+
+                  return (
+                    <Message key={message.id} from={message.role}>
+                      <MessageContent>
+                        <MessageResponse>{text}</MessageResponse>
+                      </MessageContent>
+                      {text ? (
+                        <MessageToolbar>
+                          <MessageAction
+                            label="Copy response"
+                            tooltip="Copy response"
+                            onClick={() => navigator.clipboard.writeText(text)}
+                          >
+                            <Copy className="size-4" />
+                          </MessageAction>
+                        </MessageToolbar>
+                      ) : null}
+                    </Message>
+                  );
+                })
               )}
             </ConversationContent>
             <ConversationScrollButton />
