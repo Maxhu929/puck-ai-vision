@@ -1,7 +1,7 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, type UIMessage } from "ai";
 import { useEffect, useState } from "react";
 import { Copy } from "lucide-react";
 import {
@@ -42,11 +42,10 @@ function toUIMessages(messages: ChatMessage[]) {
   }));
 }
 
-function getMessageText(message: { content?: string; parts?: Array<{ type: string; text?: string }> }) {
+function getMessageText(message: UIMessage & { content?: string }) {
   const partText = message.parts
-    ?.filter((part) => part.type === "text")
-    .map((part) => part.text ?? "")
-    .join("") ?? "";
+    .map((part) => (part.type === "text" ? part.text : ""))
+    .join("");
 
   return partText || message.content || "";
 }
