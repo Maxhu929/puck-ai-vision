@@ -1,5 +1,5 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useEffect, useState } from "react";
@@ -62,27 +62,53 @@ export const Route = createFileRoute("/chat/$threadId")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  loader: async ({ params }) => {
-    return getThreadMessages({ data: { id: params.threadId } });
-  },
   component: ChatThreadPage,
 });
 
 function ChatThreadPage() {
   const { threadId } = useParams({ from: "/chat/$threadId" });
-  const loaderData = Route.useLoaderData();
 
-  const { data } = useSuspenseQuery({
+  const { data, isPending, error } = useQuery({
     queryKey: ["thread-messages", threadId],
-    queryFn: () => getThreadMessages({ data: { id: threadId } }),
-    initialData: loaderData,
+    queryFn: async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) throw new Error("Please sign in to open this conversation.");
+      return getThreadMessages({ data: { id: threadId } });
+    },
   });
+
+  if (isPending) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <AppNav />
+        <main className="mx-auto flex w-full max-w-7xl flex-1 items-center justify-center px-5 py-8 text-sm text-muted-foreground">
+          Loading conversation…
+        </main>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <AppNav />
+        <main className="mx-auto flex w-full max-w-7xl flex-1 items-center justify-center px-5 py-8 text-sm text-destructive">
+          {error instanceof Error ? error.message : "Unable to load this conversation."}
+        </main>
+      </div>
+    );
+  }
+
+  return <ChatConversation threadId={threadId} initialMessages={data.messages} />;
+}
+
+function ChatConversation({ threadId, initialMessages }: { threadId: string; initialMessages: ChatMessage[] }) {
 
   const [input, setInput] = useState("");
 
   const chat = useChat({
     id: threadId,
-    messages: toUIMessages(data.messages),
+    messages: toUIMessages(initialMessages),
     transport: new DefaultChatTransport({
       api: "/api/chat",
       headers: async () => {
