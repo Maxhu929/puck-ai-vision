@@ -20,6 +20,15 @@ const threadMessage = z.object({
   parts: z.any().optional(),
 });
 
+
+function topicFromMessage(text: string) {
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  const firstSentence = cleaned.split(/(?<=[.?!])\s/)[0] ?? cleaned;
+  const base = firstSentence.length > 4 ? firstSentence : cleaned;
+  const title = base.length > 60 ? `${base.slice(0, 57).trimEnd()}...` : base;
+  return title.charAt(0).toUpperCase() + title.slice(1);
+}
+
 export const createThread = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -109,6 +118,23 @@ export const saveUserMessage = createServerFn({ method: "POST" })
       parts: parts as Json,
     });
     if (error) throw new Error(error.message);
+
+    // Auto-name the thread after the topic of the first user message.
+    if (data.role === "user" && data.content.trim()) {
+      const { data: thread } = await context.supabase
+        .from("threads")
+        .select("id, title")
+        .eq("id", data.threadId)
+        .eq("user_id", context.userId)
+        .maybeSingle();
+      if (thread && (!thread.title || thread.title === "New chat")) {
+        await context.supabase
+          .from("threads")
+          .update({ title: topicFromMessage(data.content) })
+          .eq("id", data.threadId)
+          .eq("user_id", context.userId);
+      }
+    }
     return { ok: true };
   });
 
