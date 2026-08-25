@@ -1,5 +1,5 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useEffect, useState } from "react";
@@ -105,8 +105,13 @@ function ChatConversation({ threadId, initialMessages }: { threadId: string; ini
 
   const [input, setInput] = useState("");
 
+  const queryClient = useQueryClient();
+
   const chat = useChat({
     id: threadId,
+    onFinish: () => {
+      queryClient.invalidateQueries({ queryKey: ["threads"] });
+    },
     messages: toUIMessages(initialMessages),
     transport: new DefaultChatTransport({
       api: "/api/chat",
