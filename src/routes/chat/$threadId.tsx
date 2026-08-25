@@ -178,7 +178,14 @@ function ChatConversation({ threadId, initialMessages }: { threadId: string; ini
             <PromptInput
               onSubmit={() => {
                 if (!input.trim()) return;
-                chat.sendMessage({ text: input.trim() });
+                const text = input.trim();
+                chat.sendMessage({ text });
+                // Optimistically name the thread from the first message's topic
+                if (initialMessages.length === 0) {
+                  renameThread({ data: { id: threadId, title: topicFromMessage(text) } })
+                    .then(() => queryClient.invalidateQueries({ queryKey: ["threads"] }))
+                    .catch(() => {});
+                }
                 setInput("");
               }}
               data-prompt-input
