@@ -23,7 +23,7 @@ import {
   PromptInputFooter,
   PromptInputSubmit,
 } from "@/components/ai-elements/prompt-input";
-import { getThreadMessages } from "@/lib/chat.functions";
+import { getThreadMessages, renameThread, topicFromMessage } from "@/lib/chat.functions";
 import { AppNav } from "@/components/AppNav";
 import coachBot from "@/assets/coach-bot.png";
 import { supabase } from "@/integrations/supabase/client";
