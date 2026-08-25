@@ -16,6 +16,18 @@ const threadsQueryOptions = queryOptions({
   staleTime: 30_000,
 });
 
+function formatStarted(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const now = new Date();
+  const sameYear = date.getFullYear() === now.getFullYear();
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+}
+
 export const Route = createFileRoute("/chat")({
   component: ChatLayout,
 });
@@ -85,10 +97,15 @@ function ChatLayout() {
                   <Link
                     to="/chat/$threadId"
                     params={{ threadId: thread.id }}
-                    className="flex flex-1 items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground"
+                    className="flex min-w-0 flex-1 items-start gap-2 px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground"
                   >
-                    <MessageSquare className="size-4 shrink-0" />
-                    <span className="truncate">{thread.title}</span>
+                    <MessageSquare className="mt-0.5 size-4 shrink-0" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">{thread.title}</span>
+                      <span className="block text-[11px] text-muted-foreground/70">
+                        {formatStarted(thread.created_at)}
+                      </span>
+                    </span>
                   </Link>
                 )}
                 <button
