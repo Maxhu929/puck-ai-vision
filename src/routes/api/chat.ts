@@ -1,6 +1,6 @@
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 import { createFileRoute } from "@tanstack/react-router";
-import { convertToModelMessages, streamText, type UIMessage } from "ai";
+import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from "ai";
 import { createClient } from "@supabase/supabase-js";
 import { createChatTools } from "@/lib/chat-tools.server";
 import { saveUserMessage, saveAssistantMessage } from "@/lib/chat.functions";
@@ -44,6 +44,22 @@ function textFromUIMessage(message: UIMessage) {
   return partText || (message as { content?: string }).content || "";
 }
 
+function mergeAdjacentUserMessages(messages: UIMessage[]) {
+  return messages.reduce<UIMessage[]>((merged, message) => {
+    const previous = merged[merged.length - 1];
+    if (message.role !== "user" || previous?.role !== "user") {
+      merged.push(message);
+      return merged;
+    }
+
+    merged[merged.length - 1] = {
+      ...previous,
+      parts: [...previous.parts, { type: "text", text: `\n${textFromUIMessage(message)}` }],
+    };
+    return merged;
+  }, []);
+}
+
 export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
@@ -60,6 +76,7 @@ export const Route = createFileRoute("/api/chat")({
         if (!key) return new Response("Missing LOVABLE_API_KEY", { status: 500 });
 
         const uiMessages = messages as UIMessage[];
+        const modelMessages = mergeAdjacentUserMessages(uiMessages);
         const lastUserMessage = uiMessages[uiMessages.length - 1];
 
         if (lastUserMessage?.role === "user") {
@@ -78,8 +95,9 @@ export const Route = createFileRoute("/api/chat")({
         const result = streamText({
           model,
           system: SYSTEM_PROMPT,
-          messages: await convertToModelMessages(uiMessages),
+          messages: await convertToModelMessages(modelMessages),
           tools: createChatTools(),
+          stopWhen: stepCountIs(5),
         });
 
         return result.toUIMessageStreamResponse({
