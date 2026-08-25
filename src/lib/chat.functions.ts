@@ -21,12 +21,27 @@ const threadMessage = z.object({
 });
 
 
-function topicFromMessage(text: string) {
+export function topicFromMessage(text: string) {
   const cleaned = text.replace(/\s+/g, " ").trim();
-  const firstSentence = cleaned.split(/(?<=[.?!])\s/)[0] ?? cleaned;
-  const base = firstSentence.length > 4 ? firstSentence : cleaned;
-  const title = base.length > 60 ? `${base.slice(0, 57).trimEnd()}...` : base;
-  return title.charAt(0).toUpperCase() + title.slice(1);
+  const firstSentence = (cleaned.split(/(?<=[.?!])\s/)[0] ?? cleaned).replace(/[?.,!;:]+$/, "").trim();
+
+  // Drop leading question words and common auxiliary phrases so the title reads like a topic
+  let topic = firstSentence
+    .replace(/^(?:what|how|why|when|where|who|which|can|could|should|would|will|do|does|did|is|are|was|were|am|have|has|had)\s+/i, "")
+    .replace(/\b(?:i|you|we|they|he|she|it)\s+(?:have|has|had|been|do|does|did|should|would|could|can|will|shall|may|might|must|want|need|like|prefer)\s+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Fallback to the cleaned first sentence if stripping removed too much
+  if (topic.length < 4) topic = firstSentence;
+
+  topic = topic.charAt(0).toUpperCase() + topic.slice(1);
+
+  if (topic.length > 60) {
+    topic = `${topic.slice(0, 57).trimEnd()}...`;
+  }
+
+  return topic;
 }
 
 export const createThread = createServerFn({ method: "POST" })
