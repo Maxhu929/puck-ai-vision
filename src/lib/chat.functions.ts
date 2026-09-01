@@ -21,24 +21,39 @@ const threadMessage = z.object({
 });
 
 
+const STOP_WORDS = new Set([
+  "a", "an", "the", "what", "how", "why", "when", "where", "who", "which",
+  "can", "could", "should", "would", "will", "shall", "do", "does", "did",
+  "is", "are", "was", "were", "am", "be", "been", "being", "have", "has", "had",
+  "i", "you", "we", "they", "he", "she", "it", "me", "my", "your", "our", "their",
+  "to", "of", "in", "on", "at", "for", "with", "about", "and", "or", "but",
+  "if", "then", "than", "that", "this", "these", "those", "there", "here",
+  "want", "need", "like", "prefer", "give", "get", "tell", "show", "make",
+  "some", "any", "many", "much", "more", "most", "best", "good",
+  "please", "thanks", "thank", "hey", "hi", "hello",
+]);
+
 export function topicFromMessage(text: string) {
   const cleaned = text.replace(/\s+/g, " ").trim();
   const firstSentence = (cleaned.split(/(?<=[.?!])\s/)[0] ?? cleaned).replace(/[?.,!;:]+$/, "").trim();
 
-  // Drop leading question words and common auxiliary phrases so the title reads like a topic
-  let topic = firstSentence
-    .replace(/^(?:what|how|why|when|where|who|which|can|could|should|would|will|do|does|did|is|are|was|were|am|have|has|had)\s+/i, "")
-    .replace(/\b(?:i|you|we|they|he|she|it)\s+(?:have|has|had|been|do|does|did|should|would|could|can|will|shall|may|might|must|want|need|like|prefer)\s+/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  // Extract up to 3 meaningful keywords so the title reads like a short topic ("Stick flex", "Game day food")
+  const keywords = firstSentence
+    .toLowerCase()
+    .replace(/[^a-z0-9\s'-]/g, " ")
+    .split(/\s+/)
+    .map((w) => w.replace(/^[-']+|[-']+$/g, ""))
+    .filter((w) => w.length > 2 && !STOP_WORDS.has(w))
+    .slice(0, 3);
 
-  // Fallback to the cleaned first sentence if stripping removed too much
-  if (topic.length < 4) topic = firstSentence;
+  let topic = keywords
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
 
-  topic = topic.charAt(0).toUpperCase() + topic.slice(1);
-
-  if (topic.length > 60) {
-    topic = `${topic.slice(0, 57).trimEnd()}...`;
+  // Fallback to the cleaned first sentence if no keywords were found
+  if (!topic) {
+    topic = firstSentence.charAt(0).toUpperCase() + firstSentence.slice(1);
+    if (topic.length > 60) topic = `${topic.slice(0, 57).trimEnd()}...`;
   }
 
   return topic;
