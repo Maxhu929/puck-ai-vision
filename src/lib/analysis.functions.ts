@@ -34,6 +34,35 @@ function toRecord(row: any): AnalysisRecord {
   };
 }
 
+/**
+ * Mint a signed upload URL so the browser can send large videos (up to the
+ * 2 GB bucket limit) straight to storage, bypassing the app server's ~100 MB
+ * request-body cap.
+ */
+export const createVideoUploadUrl = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        fileName: z.string().min(1).max(200),
+        contentType: z.string().max(100).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const safe = data.fileName.replace(/[^\w.\-]+/g, "_").slice(-80);
+    const path = `uploads/${crypto.randomUUID()}-${safe}`;
+    const { data: signed, error } = await supabaseAdmin.storage
+      .from("videos")
+      .createSignedUploadUrl(path);
+    if (error || !signed) throw new Error(error?.message ?? "Could not create upload URL");
+    return {
+      path: signed.path,
+      token: signed.token,
+      uploadUrl: `${process.env["SUPABASE_URL"]!}/storage/v1${signed.signedUrl}`,
+    };
+  });
+
 export const listAnalyses = createServerFn({ method: "GET" }).handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin

@@ -5,25 +5,47 @@ export const Route = createFileRoute("/api/analyze")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const form = await request.formData();
-          const file = form.get("file");
-          if (!(file instanceof File) || file.size === 0) {
-            return Response.json({ error: "No video file provided" }, { status: 400 });
-          }
-          if (!file.type.startsWith("video/")) {
-            return Response.json({ error: "File must be a video" }, { status: 400 });
+          const body = (await request.json()) as {
+            path?: string;
+            fileName?: string;
+            contentType?: string;
+            playerName?: string;
+            jerseyNumber?: string;
+            focusAreas?: string;
+          };
+
+          const path = String(body.path ?? "");
+          if (!path.startsWith("uploads/") || path.includes("..")) {
+            return Response.json({ error: "Invalid storage path" }, { status: 400 });
           }
 
-          const playerName = String(form.get("playerName") ?? "").slice(0, 80) || "Unknown Player";
-          const jerseyNumber = String(form.get("jerseyNumber") ?? "").slice(0, 8) || null;
-          const focusAreas = String(form.get("focusAreas") ?? "")
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { ensureIndex, createIndexingTask } = await import("@/lib/twelvelabs.server");
+
+          const { data: blob, error: downloadError } = await supabaseAdmin.storage
+            .from("videos")
+            .download(path);
+          if (downloadError || !blob) {
+            return Response.json(
+              { error: "Video not found in storage — the upload may not have finished." },
+              { status: 400 },
+            );
+          }
+
+          const contentType =
+            typeof body.contentType === "string" && body.contentType.startsWith("video/")
+              ? body.contentType
+              : "video/mp4";
+          const fileName = String(body.fileName ?? "video.mp4").slice(0, 200);
+          const file = new File([blob], fileName, { type: contentType });
+
+          const playerName = String(body.playerName ?? "").slice(0, 80) || "Unknown Player";
+          const jerseyNumber = String(body.jerseyNumber ?? "").slice(0, 8) || null;
+          const focusAreas = String(body.focusAreas ?? "")
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean)
             .slice(0, 8);
-
-          const { ensureIndex, createIndexingTask } = await import("@/lib/twelvelabs.server");
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
           const indexId = await ensureIndex();
           const taskId = await createIndexingTask(indexId, file);

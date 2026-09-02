@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listAnalyses, refreshAnalysis } from "@/lib/analysis.functions";
+import { createVideoUploadUrl, listAnalyses, refreshAnalysis } from "@/lib/analysis.functions";
 
 const title = "Upload Game Footage | Hockey Video Analyzer";
 const description =
@@ -37,6 +37,7 @@ function UploadPage() {
   const meta = useRef({ playerName: "", jerseyNumber: "", focusAreas: "" });
 
   const refresh = useServerFn(refreshAnalysis);
+  const createUploadUrl = useServerFn(createVideoUploadUrl);
   const recent = useQuery({ queryKey: ["analyses"], queryFn: () => listAnalyses() });
 
   useEffect(() => {
@@ -65,7 +66,7 @@ function UploadPage() {
   }, [phase, analysisId]);
 
   async function startUpload(file: File) {
-    const MAX_BYTES = 100 * 1024 * 1024; // gateway limit for a single upload
+    const MAX_BYTES = 2 * 1024 * 1024 * 1024; // storage bucket limit
 
     setFileName(file.name);
     setProgress(2);
@@ -76,40 +77,53 @@ function UploadPage() {
       setPhase("failed");
       setProgress(0);
       setMessage(
-        `This clip is ${(file.size / 1024 / 1024).toFixed(0)} MB. Uploads are capped at 100 MB — trim the footage to a shift or period and try again.`,
+        `This clip is ${(file.size / 1024 / 1024 / 1024).toFixed(1)} GB. Uploads are capped at 2 GB — trim the footage and try again.`,
       );
       return;
     }
 
     setPhase("uploading");
 
-    const body = new FormData();
-    body.append("file", file);
-    body.append("playerName", meta.current.playerName);
-    body.append("jerseyNumber", meta.current.jerseyNumber);
-    body.append("focusAreas", meta.current.focusAreas);
+    let upload: { path: string; token: string; uploadUrl: string };
+    try {
+      upload = await createUploadUrl({
+        data: { fileName: file.name, contentType: file.type || "video/mp4" },
+      });
+    } catch (err) {
+      setPhase("failed");
+      setMessage(err instanceof Error ? err.message : "Could not start the upload.");
+      return;
+    }
 
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/analyze");
-    xhr.timeout = 15 * 60 * 1000;
+    xhr.open("PUT", upload.uploadUrl);
+    xhr.setRequestHeader("Content-Type", file.type || "video/mp4");
+    xhr.timeout = 60 * 60 * 1000;
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 55));
     };
-    xhr.onload = () => {
+    xhr.onload = async () => {
       try {
-        if (xhr.status === 413) {
-          throw new Error("The video was rejected as too large. Try a clip under 100 MB.");
+        if (xhr.status >= 400) {
+          throw new Error(`Upload failed (storage responded ${xhr.status}). Try again.`);
         }
-        let res: { id?: string; error?: string };
-        try {
-          res = JSON.parse(xhr.responseText);
-        } catch {
-          throw new Error(
-            `Upload failed (server responded ${xhr.status}). This usually means the file was too large or the request timed out.`,
-          );
-        }
-        if (xhr.status >= 400) throw new Error(res.error ?? "Upload failed");
-        setAnalysisId(res.id!);
+        setProgress(58);
+        setMessage("Sending footage to the AI…");
+        const res = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            path: upload.path,
+            fileName: file.name,
+            contentType: file.type || "video/mp4",
+            playerName: meta.current.playerName,
+            jerseyNumber: meta.current.jerseyNumber,
+            focusAreas: meta.current.focusAreas,
+          }),
+        });
+        const json = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
+        if (!res.ok) throw new Error(json.error ?? "Analysis could not be started");
+        setAnalysisId(json.id!);
         setPhase("indexing");
         setProgress(60);
         setMessage("Indexing footage with Twelve Labs…");
@@ -120,15 +134,15 @@ function UploadPage() {
     };
     xhr.ontimeout = () => {
       setPhase("failed");
-      setMessage("Upload timed out. Large videos can take a while — try a shorter clip.");
+      setMessage("Upload timed out. Very large videos can take a while — try again on a faster connection.");
     };
     xhr.onerror = () => {
       setPhase("failed");
       setMessage(
-        "The upload connection was closed before the video finished sending. This is usually the file size, not your internet — try a clip under 100 MB.",
+        "The upload connection was closed before the video finished sending. Check your connection and try again.",
       );
     };
-    xhr.send(body);
+    xhr.send(file);
   }
 
 
@@ -148,7 +162,7 @@ function UploadPage() {
           >
             <UploadCloud className="size-10 text-ice" strokeWidth={1.75} />
             <span className="mt-5 text-lg font-semibold">Drop your video here</span>
-            <span className="mt-1 text-sm text-muted-foreground">MP4, MOV or HEVC — up to 100 MB per clip</span>
+            <span className="mt-1 text-sm text-muted-foreground">MP4, MOV or HEVC — up to 2 GB per clip</span>
             <input
               id="video"
               type="file"
