@@ -34,7 +34,8 @@ function UploadPage() {
   const [phase, setPhase] = useState<"idle" | "uploading" | "indexing" | "ready" | "failed">("idle");
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const meta = useRef({ playerName: "", jerseyNumber: "", focusAreas: "" });
+  const [playerName, setPlayerName] = useState("");
+  const meta = useRef({ gameLabel: "", jerseyNumber: "", focusAreas: "" });
 
   const refresh = useServerFn(refreshAnalysis);
   const createUploadUrl = useServerFn(createVideoUploadUrl);
@@ -73,6 +74,13 @@ function UploadPage() {
     setMessage(null);
     setAnalysisId(null);
 
+    if (!playerName.trim()) {
+      setPhase("failed");
+      setProgress(0);
+      setMessage("Add the player's name below before uploading so the feedback is filed correctly.");
+      return;
+    }
+
     if (file.size > MAX_BYTES) {
       setPhase("failed");
       setProgress(0);
@@ -83,6 +91,7 @@ function UploadPage() {
     }
 
     setPhase("uploading");
+
 
     let upload: { path: string; token: string; uploadUrl: string };
     try {
@@ -116,9 +125,11 @@ function UploadPage() {
             path: upload.path,
             fileName: file.name,
             contentType: file.type || "video/mp4",
-            playerName: meta.current.playerName,
+            playerName: playerName.trim(),
             jerseyNumber: meta.current.jerseyNumber,
-            focusAreas: meta.current.focusAreas,
+            focusAreas: [meta.current.gameLabel && `Game: ${meta.current.gameLabel}`, meta.current.focusAreas]
+              .filter(Boolean)
+              .join(" — "),
           }),
         });
         const json = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
@@ -211,13 +222,24 @@ function UploadPage() {
 
           <div className="surface-card grid gap-5 rounded-2xl p-6 sm:grid-cols-2">
             <div className="space-y-2">
+              <Label htmlFor="player">Player name</Label>
+              <Input
+                id="player"
+                placeholder="Connor Hughes"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Required — this is the name shown on the feedback page.</p>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="game">Game or session</Label>
               <Input
                 id="game"
                 placeholder="Bantam AA vs. Northside"
-                onChange={(e) => (meta.current.playerName = e.target.value)}
+                onChange={(e) => (meta.current.gameLabel = e.target.value)}
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="jersey">Your jersey number</Label>
               <Input
