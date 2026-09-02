@@ -148,7 +148,7 @@ function UploadPage() {
           >
             <UploadCloud className="size-10 text-ice" strokeWidth={1.75} />
             <span className="mt-5 text-lg font-semibold">Drop your video here</span>
-            <span className="mt-1 text-sm text-muted-foreground">MP4, MOV or HEVC — up to 4 GB per game</span>
+            <span className="mt-1 text-sm text-muted-foreground">MP4, MOV or HEVC — up to 100 MB per clip</span>
             <input
               id="video"
               type="file"
