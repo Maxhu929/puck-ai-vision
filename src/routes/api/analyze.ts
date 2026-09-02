@@ -20,25 +20,25 @@ export const Route = createFileRoute("/api/analyze")({
           }
 
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const { ensureIndex, createIndexingTask } = await import("@/lib/twelvelabs.server");
+          const { ensureIndex, createIndexingTaskFromUrl } = await import("@/lib/twelvelabs.server");
 
-          const { data: blob, error: downloadError } = await supabaseAdmin.storage
+          // Hand Twelve Labs a temporary download URL so we never stream the
+          // whole video through this server (that is what stalled at 58%).
+          const { data: signed, error: signError } = await supabaseAdmin.storage
             .from("videos")
-            .download(path);
-          if (downloadError || !blob) {
+            .createSignedUrl(path, 60 * 60 * 6);
+          if (signError || !signed?.signedUrl) {
             return Response.json(
               { error: "Video not found in storage — the upload may not have finished." },
               { status: 400 },
             );
           }
+          const base = process.env["SUPABASE_URL"]!.replace(/\/$/, "");
+          const videoUrl = signed.signedUrl.startsWith("http")
+            ? signed.signedUrl
+            : `${base}/storage/v1${signed.signedUrl}`;
 
-          const contentType =
-            typeof body.contentType === "string" && body.contentType.startsWith("video/")
-              ? body.contentType
-              : "video/mp4";
           const fileName = String(body.fileName ?? "video.mp4").slice(0, 200);
-          const file = new File([blob], fileName, { type: contentType });
-
           const playerName = String(body.playerName ?? "").slice(0, 80) || "Unknown Player";
           const jerseyNumber = String(body.jerseyNumber ?? "").slice(0, 8) || null;
           const focusAreas = String(body.focusAreas ?? "")
@@ -48,7 +48,8 @@ export const Route = createFileRoute("/api/analyze")({
             .slice(0, 8);
 
           const indexId = await ensureIndex();
-          const taskId = await createIndexingTask(indexId, file);
+          const taskId = await createIndexingTaskFromUrl(indexId, videoUrl);
+
 
           const { data, error } = await supabaseAdmin
             .from("video_analyses")
@@ -56,7 +57,7 @@ export const Route = createFileRoute("/api/analyze")({
               player_name: playerName,
               jersey_number: jerseyNumber,
               focus_areas: focusAreas,
-              file_name: file.name,
+              file_name: fileName,
               tl_index_id: indexId,
               tl_task_id: taskId,
               status: "indexing",

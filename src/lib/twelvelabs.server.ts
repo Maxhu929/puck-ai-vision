@@ -40,6 +40,15 @@ export async function ensureIndex(): Promise<string> {
   return (created._id ?? created.id) as string;
 }
 
+/** Start indexing from a publicly reachable video URL. Returns the task id. */
+export async function createIndexingTaskFromUrl(indexId: string, videoUrl: string): Promise<string> {
+  const form = new FormData();
+  form.append("index_id", indexId);
+  form.append("video_url", videoUrl);
+  const task = await tl("/tasks", { method: "POST", body: form });
+  return (task._id ?? task.id) as string;
+}
+
 /** Upload a video file and start indexing. Returns the task id. */
 export async function createIndexingTask(indexId: string, file: File): Promise<string> {
   const form = new FormData();
