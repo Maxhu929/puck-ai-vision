@@ -69,7 +69,7 @@ export const Route = createFileRoute("/api/analyze")({
           return Response.json({ id: data.id, taskId });
         } catch (err) {
           const message = err instanceof Error ? err.message : "Upload failed";
-          console.error("analyze upload failed:", message);
+          console.error("analyze upload failed:", message, (err as any)?.cause, (err as any)?.stack);
           return Response.json({ error: message }, { status: 500 });
         }
       },

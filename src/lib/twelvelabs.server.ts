@@ -7,11 +7,23 @@ function apiKey() {
   return key;
 }
 
-async function tl(path: string, init: RequestInit = {}) {
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers: { "x-api-key": apiKey(), ...(init.headers ?? {}) },
-  });
+async function tl(path: string, init: RequestInit = {}, attempt = 0): Promise<any> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      ...init,
+      headers: { "x-api-key": apiKey(), ...(init.headers ?? {}) },
+    });
+  } catch (err) {
+    // Transient network failure talking to Twelve Labs ("fetch failed").
+    if (attempt < 2) {
+      await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+      return tl(path, init, attempt + 1);
+    }
+    throw new Error(
+      `Could not reach the video analysis service (${err instanceof Error ? err.message : "network error"}). Please try again.`,
+    );
+  }
   const text = await res.text();
   if (!res.ok) {
     console.error(`Twelve Labs ${path} failed [${res.status}]: ${text}`);
