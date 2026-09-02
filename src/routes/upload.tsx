@@ -222,13 +222,24 @@ function UploadPage() {
 
           <div className="surface-card grid gap-5 rounded-2xl p-6 sm:grid-cols-2">
             <div className="space-y-2">
+              <Label htmlFor="player">Player name</Label>
+              <Input
+                id="player"
+                placeholder="Connor Hughes"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Required — this is the name shown on the feedback page.</p>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="game">Game or session</Label>
               <Input
                 id="game"
                 placeholder="Bantam AA vs. Northside"
-                onChange={(e) => (meta.current.playerName = e.target.value)}
+                onChange={(e) => (meta.current.gameLabel = e.target.value)}
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="jersey">Your jersey number</Label>
               <Input
