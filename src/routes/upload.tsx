@@ -125,9 +125,11 @@ function UploadPage() {
             path: upload.path,
             fileName: file.name,
             contentType: file.type || "video/mp4",
-            playerName: meta.current.playerName,
+            playerName: playerName.trim(),
             jerseyNumber: meta.current.jerseyNumber,
-            focusAreas: meta.current.focusAreas,
+            focusAreas: [meta.current.gameLabel && `Game: ${meta.current.gameLabel}`, meta.current.focusAreas]
+              .filter(Boolean)
+              .join(" — "),
           }),
         });
         const json = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
