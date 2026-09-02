@@ -74,6 +74,13 @@ function UploadPage() {
     setMessage(null);
     setAnalysisId(null);
 
+    if (!playerName.trim()) {
+      setPhase("failed");
+      setProgress(0);
+      setMessage("Add the player's name below before uploading so the feedback is filed correctly.");
+      return;
+    }
+
     if (file.size > MAX_BYTES) {
       setPhase("failed");
       setProgress(0);
@@ -84,6 +91,7 @@ function UploadPage() {
     }
 
     setPhase("uploading");
+
 
     let upload: { path: string; token: string; uploadUrl: string };
     try {
