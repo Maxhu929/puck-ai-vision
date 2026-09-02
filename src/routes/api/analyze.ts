@@ -57,7 +57,7 @@ export const Route = createFileRoute("/api/analyze")({
               player_name: playerName,
               jersey_number: jerseyNumber,
               focus_areas: focusAreas,
-              file_name: file.name,
+              file_name: fileName,
               tl_index_id: indexId,
               tl_task_id: taskId,
               status: "indexing",
