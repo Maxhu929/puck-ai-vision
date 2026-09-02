@@ -65,11 +65,23 @@ function UploadPage() {
   }, [phase, analysisId]);
 
   async function startUpload(file: File) {
+    const MAX_BYTES = 100 * 1024 * 1024; // gateway limit for a single upload
+
     setFileName(file.name);
-    setPhase("uploading");
     setProgress(2);
     setMessage(null);
     setAnalysisId(null);
+
+    if (file.size > MAX_BYTES) {
+      setPhase("failed");
+      setProgress(0);
+      setMessage(
+        `This clip is ${(file.size / 1024 / 1024).toFixed(0)} MB. Uploads are capped at 100 MB — trim the footage to a shift or period and try again.`,
+      );
+      return;
+    }
+
+    setPhase("uploading");
 
     const body = new FormData();
     body.append("file", file);
@@ -79,14 +91,25 @@ function UploadPage() {
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/analyze");
+    xhr.timeout = 15 * 60 * 1000;
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 55));
     };
     xhr.onload = () => {
       try {
-        const res = JSON.parse(xhr.responseText);
+        if (xhr.status === 413) {
+          throw new Error("The video was rejected as too large. Try a clip under 100 MB.");
+        }
+        let res: { id?: string; error?: string };
+        try {
+          res = JSON.parse(xhr.responseText);
+        } catch {
+          throw new Error(
+            `Upload failed (server responded ${xhr.status}). This usually means the file was too large or the request timed out.`,
+          );
+        }
         if (xhr.status >= 400) throw new Error(res.error ?? "Upload failed");
-        setAnalysisId(res.id);
+        setAnalysisId(res.id!);
         setPhase("indexing");
         setProgress(60);
         setMessage("Indexing footage with Twelve Labs…");
@@ -95,12 +118,19 @@ function UploadPage() {
         setMessage(err instanceof Error ? err.message : "Upload failed");
       }
     };
+    xhr.ontimeout = () => {
+      setPhase("failed");
+      setMessage("Upload timed out. Large videos can take a while — try a shorter clip.");
+    };
     xhr.onerror = () => {
       setPhase("failed");
-      setMessage("Network error while uploading");
+      setMessage(
+        "The upload connection was closed before the video finished sending. This is usually the file size, not your internet — try a clip under 100 MB.",
+      );
     };
     xhr.send(body);
   }
+
 
   return (
     <PageShell title="Upload" subtitle="Add game footage and the AI will grade every shift.">
@@ -118,7 +148,7 @@ function UploadPage() {
           >
             <UploadCloud className="size-10 text-ice" strokeWidth={1.75} />
             <span className="mt-5 text-lg font-semibold">Drop your video here</span>
-            <span className="mt-1 text-sm text-muted-foreground">MP4, MOV or HEVC — up to 4 GB per game</span>
+            <span className="mt-1 text-sm text-muted-foreground">MP4, MOV or HEVC — up to 100 MB per clip</span>
             <input
               id="video"
               type="file"
