@@ -56,11 +56,11 @@ export const createVideoUploadUrl = createServerFn({ method: "POST" })
       .from("videos")
       .createSignedUploadUrl(path);
     if (error || !signed) throw new Error(error?.message ?? "Could not create upload URL");
-    return {
-      path: signed.path,
-      token: signed.token,
-      uploadUrl: `${process.env["SUPABASE_URL"]!}/storage/v1${signed.signedUrl}`,
-    };
+    const base = process.env["SUPABASE_URL"]!.replace(/\/$/, "");
+    const uploadUrl = signed.signedUrl.startsWith("http")
+      ? signed.signedUrl
+      : `${base}/storage/v1${signed.signedUrl}`;
+    return { path: signed.path, token: signed.token, uploadUrl };
   });
 
 export const listAnalyses = createServerFn({ method: "GET" }).handler(async () => {
