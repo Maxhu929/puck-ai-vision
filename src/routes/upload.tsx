@@ -34,7 +34,8 @@ function UploadPage() {
   const [phase, setPhase] = useState<"idle" | "uploading" | "indexing" | "ready" | "failed">("idle");
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const meta = useRef({ playerName: "", jerseyNumber: "", focusAreas: "" });
+  const [playerName, setPlayerName] = useState("");
+  const meta = useRef({ gameLabel: "", jerseyNumber: "", focusAreas: "" });
 
   const refresh = useServerFn(refreshAnalysis);
   const createUploadUrl = useServerFn(createVideoUploadUrl);
