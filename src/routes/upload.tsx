@@ -67,10 +67,10 @@ function UploadPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, analysisId]);
 
-  async function startUpload(file: File) {
+  async function startUpload(original: File) {
     const MAX_BYTES = 2 * 1024 * 1024 * 1024; // storage bucket limit
 
-    setFileName(file.name);
+    setFileName(original.name);
     setProgress(2);
     setMessage(null);
     setAnalysisId(null);
@@ -80,6 +80,21 @@ function UploadPage() {
       setProgress(0);
       setMessage("Add the player's name below before uploading so the feedback is filed correctly.");
       return;
+    }
+
+    let file = original;
+
+    if (shouldCompress(file)) {
+      setPhase("optimizing");
+      setMessage("Large clip — reducing the video quality so it uploads and analyzes faster…");
+      file = await compressVideo(file, (f) => setProgress(2 + Math.round(f * 23)));
+      setFileName(file.name);
+      if (file !== original) {
+        const saved = Math.round((1 - file.size / original.size) * 100);
+        setMessage(
+          `Optimized to ${(file.size / 1024 / 1024).toFixed(0)} MB (${saved}% smaller) — uploading…`,
+        );
+      }
     }
 
     if (file.size > MAX_BYTES) {
@@ -110,8 +125,9 @@ function UploadPage() {
     xhr.setRequestHeader("Content-Type", file.type || "video/mp4");
     xhr.timeout = 60 * 60 * 1000;
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 55));
+      if (e.lengthComputable) setProgress(25 + Math.round((e.loaded / e.total) * 30));
     };
+
     xhr.onload = async () => {
       try {
         if (xhr.status >= 400) {
