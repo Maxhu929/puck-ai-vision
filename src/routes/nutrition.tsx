@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
-import { Apple, Droplets, Flame } from "lucide-react";
+import { useSuspenseQuery, queryOptions, useQuery } from "@tanstack/react-query";
+import { Apple, Droplets, Flame, ArrowDownRight, ArrowUpRight, Minus, Video } from "lucide-react";
 import { PageShell } from "@/components/AppNav";
 import { listPlayers } from "@/lib/players.functions";
+import { listAnalyses } from "@/lib/analysis.functions";
+import { compareWorkloads } from "@/lib/nutrition-compare";
 import {
   activityLevels,
   buildNutritionPlan,
@@ -18,6 +20,12 @@ const playersQuery = queryOptions({
   queryKey: ["players"],
   queryFn: () => listPlayers(),
 });
+
+const analysesQuery = queryOptions({
+  queryKey: ["analyses"],
+  queryFn: () => listAnalyses(),
+});
+
 
 const title = "Player Nutrition Plan | Calories & Macros";
 const description =
