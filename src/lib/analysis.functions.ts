@@ -1,6 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+export type ClipMetrics = {
+  topSpeedKph: number;
+  avgSpeedKph: number;
+  distanceCoveredM: number;
+  shifts: number;
+  puckTouches: number;
+  movementNote: string;
+  tendencyNote: string;
+};
+
 export type AnalysisRecord = {
   id: string;
   playerName: string;
@@ -13,11 +23,15 @@ export type AnalysisRecord = {
   summary: string | null;
   notes: Array<{ time: string; tag: string; type: string; text: string }>;
   categories: Array<{ name: string; score: number; note: string }>;
+  metrics: ClipMetrics | null;
   createdAt: string;
 };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function toRecord(row: any): AnalysisRecord {
+  const metrics = row.metrics && typeof row.metrics === "object" && Object.keys(row.metrics).length
+    ? (row.metrics as ClipMetrics)
+    : null;
   return {
     id: row.id,
     playerName: row.player_name,
@@ -30,6 +44,7 @@ function toRecord(row: any): AnalysisRecord {
     summary: row.summary,
     notes: (row.notes ?? []) as AnalysisRecord["notes"],
     categories: (row.categories ?? []) as AnalysisRecord["categories"],
+    metrics,
     createdAt: row.created_at,
   };
 }
