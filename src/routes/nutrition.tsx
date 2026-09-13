@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
-import { Apple, Droplets, Flame } from "lucide-react";
+import { useSuspenseQuery, queryOptions, useQuery } from "@tanstack/react-query";
+import { Apple, Droplets, Flame, ArrowDownRight, ArrowUpRight, Minus, Video } from "lucide-react";
 import { PageShell } from "@/components/AppNav";
 import { listPlayers } from "@/lib/players.functions";
+import { listAnalyses } from "@/lib/analysis.functions";
+import { compareWorkloads } from "@/lib/nutrition-compare";
 import {
   activityLevels,
   buildNutritionPlan,
@@ -18,6 +20,12 @@ const playersQuery = queryOptions({
   queryKey: ["players"],
   queryFn: () => listPlayers(),
 });
+
+const analysesQuery = queryOptions({
+  queryKey: ["analyses"],
+  queryFn: () => listAnalyses(),
+});
+
 
 const title = "Player Nutrition Plan | Calories & Macros";
 const description =
@@ -74,6 +82,20 @@ function NutritionPage() {
     { label: "Carbs", grams: plan.carbs, kcal: plan.carbs * 4, color: "var(--gold)" },
     { label: "Fat", grams: plan.fat, kcal: plan.fat * 9, color: "var(--turf)" },
   ];
+
+  const analyses = useQuery(analysesQuery);
+  const readyClips = (analyses.data?.items ?? []).filter((a) => a.status === "ready");
+  const nameMatch = player
+    ? readyClips.filter((a) => a.playerName.toLowerCase() === player.name.toLowerCase())
+    : [];
+  const clips = (nameMatch.length >= 2 ? nameMatch : readyClips).slice(0, 2);
+  const comparison = useMemo(
+    () => (clips.length === 2 ? compareWorkloads(clips[0], clips[1], weightKg) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [clips[0]?.id, clips[1]?.id, weightKg],
+  );
+
+
 
   return (
     <PageShell
@@ -209,6 +231,79 @@ function NutritionPage() {
               ))}
             </div>
           </div>
+
+          <div className="surface-card rounded-2xl p-6">
+            <h2 className="flex items-center gap-2 text-lg font-semibold">
+              <Video className="size-5 text-ice" /> Last two clips compared
+            </h2>
+            {comparison && clips.length === 2 ? (
+              <>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {clips[0].playerName} · {new Date(clips[0].createdAt).toLocaleDateString()} vs{" "}
+                  {new Date(clips[1].createdAt).toLocaleDateString()}
+                </p>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {comparison.metrics.map((m) => {
+                    const up = m.deltaPct > 0;
+                    const flat = m.deltaPct === 0;
+                    const Icon = flat ? Minus : up ? ArrowUpRight : ArrowDownRight;
+                    return (
+                      <div key={m.key} className="rounded-xl border border-border px-4 py-3">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">{m.label}</p>
+                        <p className="mt-1 font-display text-2xl font-bold">
+                          {m.latest}
+                          {m.unit ? <span className="ml-1 text-sm font-normal">{m.unit}</span> : null}
+                        </p>
+                        <p
+                          className={`mt-1 flex items-center gap-1 text-xs ${
+                            flat ? "text-muted-foreground" : up ? "text-turf" : "text-gold"
+                          }`}
+                        >
+                          <Icon className="size-3.5" />
+                          {flat ? "no change" : `${up ? "+" : ""}${m.deltaPct}%`}
+                          <span className="text-muted-foreground">vs {m.previous}{m.unit}</span>
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <ul className="mt-6 space-y-3 text-sm">
+                  {comparison.insights.map((i) => (
+                    <li key={i.title} className="rounded-xl border border-border px-4 py-3">
+                      <p
+                        className={
+                          i.tone === "warn"
+                            ? "font-semibold text-gold"
+                            : i.tone === "good"
+                              ? "font-semibold text-turf"
+                              : "font-semibold text-foreground"
+                        }
+                      >
+                        {i.title}
+                      </p>
+                      <p className="mt-1 text-muted-foreground">{i.detail}</p>
+                    </li>
+                  ))}
+                </ul>
+
+                {comparison.estimated ? (
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    Some numbers are estimated from the clip breakdown because that video was reviewed before
+                    movement tracking was added. Upload two new clips for measured speeds.
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">
+                {analyses.isLoading
+                  ? "Loading recent clips…"
+                  : "Upload at least two clips to compare speed, movement and puck involvement between games."}
+              </p>
+            )}
+          </div>
+
+
 
           <div className="grid gap-6 md:grid-cols-2">
             <div className="surface-card rounded-2xl p-6">
