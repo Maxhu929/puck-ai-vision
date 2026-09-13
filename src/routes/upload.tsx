@@ -31,7 +31,8 @@ export const Route = createFileRoute("/upload")({
 function UploadPage() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [phase, setPhase] = useState<"idle" | "uploading" | "indexing" | "ready" | "failed">("idle");
+  const [phase, setPhase] = useState<"idle" | "optimizing" | "uploading" | "indexing" | "ready" | "failed">("idle");
+
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [playerName, setPlayerName] = useState("");
