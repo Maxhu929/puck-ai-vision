@@ -78,11 +78,22 @@ export async function getTask(taskId: string) {
   };
 }
 
+export type ClipMetrics = {
+  topSpeedKph: number;
+  avgSpeedKph: number;
+  distanceCoveredM: number;
+  shifts: number;
+  puckTouches: number;
+  movementNote: string;
+  tendencyNote: string;
+};
+
 export type HockeyAnalysis = {
   overallGrade: string;
   summary: string;
   notes: Array<{ time: string; tag: string; type: "positive" | "improvement"; text: string }>;
   categories: Array<{ name: string; score: number; note: string }>;
+  metrics: ClipMetrics | null;
 };
 
 const PROMPT = `You are an elite hockey skills coach reviewing this video.
@@ -91,10 +102,21 @@ Return ONLY valid JSON (no markdown fences) matching exactly:
   "overallGrade": "letter grade such as A-, B+",
   "summary": "2-3 sentence coaching summary of the player's performance",
   "notes": [{"time":"MM:SS","tag":"short play label","type":"positive|improvement","text":"one sentence of specific coaching feedback"}],
-  "categories": [{"name":"Skating","score":0-100,"note":"one short sentence"}]
+  "categories": [{"name":"Skating","score":0-100,"note":"one short sentence"}],
+  "metrics": {
+    "topSpeedKph": number,
+    "avgSpeedKph": number,
+    "distanceCoveredM": number,
+    "shifts": number,
+    "puckTouches": number,
+    "movementNote": "one sentence on how much and how hard the player moved",
+    "tendencyNote": "one sentence on habits such as how often they engaged with the puck"
+  }
 }
 Include 5-10 notes with real timestamps taken from the footage, and exactly these categories:
-Skating, Puck Control, Shot Selection, Positioning, Hockey IQ.`;
+Skating, Puck Control, Shot Selection, Positioning, Hockey IQ.
+For metrics, give your best visual estimate for the tracked player (skating speeds in km/h, distance in meters, count the puck touches you can see). Never leave metrics out.`;
+
 
 /** Ask Pegasus for structured hockey coaching feedback on an indexed video. */
 export async function analyzeVideo(videoId: string, focus: string[]): Promise<HockeyAnalysis> {
