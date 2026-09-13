@@ -171,6 +171,7 @@ export type Database = {
           focus_areas: string[]
           id: string
           jersey_number: string | null
+          metrics: Json
           notes: Json
           overall_grade: string | null
           player_name: string
@@ -189,6 +190,7 @@ export type Database = {
           focus_areas?: string[]
           id?: string
           jersey_number?: string | null
+          metrics?: Json
           notes?: Json
           overall_grade?: string | null
           player_name?: string
@@ -207,6 +209,7 @@ export type Database = {
           focus_areas?: string[]
           id?: string
           jersey_number?: string | null
+          metrics?: Json
           notes?: Json
           overall_grade?: string | null
           player_name?: string
