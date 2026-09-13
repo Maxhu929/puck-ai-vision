@@ -142,6 +142,7 @@ export const refreshAnalysis = createServerFn({ method: "POST" })
           summary: analysis.summary,
           notes: analysis.notes,
           categories: analysis.categories,
+          metrics: analysis.metrics ?? {},
         })
         .eq("id", row.id)
         .select("*")
