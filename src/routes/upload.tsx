@@ -9,6 +9,8 @@ import { Progress } from "@/components/ui/progress";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { createVideoUploadUrl, listAnalyses, refreshAnalysis } from "@/lib/analysis.functions";
+import { compressVideo, shouldCompress } from "@/lib/video-compress";
+
 
 const title = "Upload Game Footage | Hockey Video Analyzer";
 const description =
