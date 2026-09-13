@@ -144,5 +144,16 @@ export async function analyzeVideo(videoId: string, focus: string[]): Promise<Ho
     summary: parsed.summary ?? "",
     notes: Array.isArray(parsed.notes) ? parsed.notes : [],
     categories: Array.isArray(parsed.categories) ? parsed.categories : [],
+    metrics: parsed.metrics
+      ? {
+          topSpeedKph: Number(parsed.metrics.topSpeedKph) || 0,
+          avgSpeedKph: Number(parsed.metrics.avgSpeedKph) || 0,
+          distanceCoveredM: Number(parsed.metrics.distanceCoveredM) || 0,
+          shifts: Number(parsed.metrics.shifts) || 0,
+          puckTouches: Number(parsed.metrics.puckTouches) || 0,
+          movementNote: String(parsed.metrics.movementNote ?? ""),
+          tendencyNote: String(parsed.metrics.tendencyNote ?? ""),
+        }
+      : null,
   };
 }
