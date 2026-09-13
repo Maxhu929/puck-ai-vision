@@ -9,6 +9,8 @@ import { Progress } from "@/components/ui/progress";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { createVideoUploadUrl, listAnalyses, refreshAnalysis } from "@/lib/analysis.functions";
+import { compressVideo, shouldCompress } from "@/lib/video-compress";
+
 
 const title = "Upload Game Footage | Hockey Video Analyzer";
 const description =
@@ -31,7 +33,8 @@ export const Route = createFileRoute("/upload")({
 function UploadPage() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [phase, setPhase] = useState<"idle" | "uploading" | "indexing" | "ready" | "failed">("idle");
+  const [phase, setPhase] = useState<"idle" | "optimizing" | "uploading" | "indexing" | "ready" | "failed">("idle");
+
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [playerName, setPlayerName] = useState("");
@@ -66,10 +69,10 @@ function UploadPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, analysisId]);
 
-  async function startUpload(file: File) {
+  async function startUpload(original: File) {
     const MAX_BYTES = 2 * 1024 * 1024 * 1024; // storage bucket limit
 
-    setFileName(file.name);
+    setFileName(original.name);
     setProgress(2);
     setMessage(null);
     setAnalysisId(null);
@@ -79,6 +82,21 @@ function UploadPage() {
       setProgress(0);
       setMessage("Add the player's name below before uploading so the feedback is filed correctly.");
       return;
+    }
+
+    let file = original;
+
+    if (shouldCompress(file)) {
+      setPhase("optimizing");
+      setMessage("Large clip — reducing the video quality so it uploads and analyzes faster…");
+      file = await compressVideo(file, (f) => setProgress(2 + Math.round(f * 23)));
+      setFileName(file.name);
+      if (file !== original) {
+        const saved = Math.round((1 - file.size / original.size) * 100);
+        setMessage(
+          `Optimized to ${(file.size / 1024 / 1024).toFixed(0)} MB (${saved}% smaller) — uploading…`,
+        );
+      }
     }
 
     if (file.size > MAX_BYTES) {
@@ -109,8 +127,9 @@ function UploadPage() {
     xhr.setRequestHeader("Content-Type", file.type || "video/mp4");
     xhr.timeout = 60 * 60 * 1000;
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 55));
+      if (e.lengthComputable) setProgress(25 + Math.round((e.loaded / e.total) * 30));
     };
+
     xhr.onload = async () => {
       try {
         if (xhr.status >= 400) {
@@ -173,7 +192,11 @@ function UploadPage() {
           >
             <UploadCloud className="size-10 text-ice" strokeWidth={1.75} />
             <span className="mt-5 text-lg font-semibold">Drop your video here</span>
-            <span className="mt-1 text-sm text-muted-foreground">MP4, MOV or HEVC — up to 2 GB per clip</span>
+            <span className="mt-1 text-sm text-muted-foreground">
+              MP4, MOV or HEVC — up to 2 GB. Big clips are automatically shrunk to a lighter quality so analysis
+              starts sooner.
+            </span>
+
             <input
               id="video"
               type="file"
