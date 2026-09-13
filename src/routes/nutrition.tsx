@@ -83,6 +83,20 @@ function NutritionPage() {
     { label: "Fat", grams: plan.fat, kcal: plan.fat * 9, color: "var(--turf)" },
   ];
 
+  const analyses = useQuery(analysesQuery);
+  const readyClips = (analyses.data?.items ?? []).filter((a) => a.status === "ready");
+  const nameMatch = player
+    ? readyClips.filter((a) => a.playerName.toLowerCase() === player.name.toLowerCase())
+    : [];
+  const clips = (nameMatch.length >= 2 ? nameMatch : readyClips).slice(0, 2);
+  const comparison = useMemo(
+    () => (clips.length === 2 ? compareWorkloads(clips[0], clips[1], weightKg) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [clips[0]?.id, clips[1]?.id, weightKg],
+  );
+
+
+
   return (
     <PageShell
       title="Nutrition plan"
