@@ -88,7 +88,9 @@ function UploadPage() {
 
     if (shouldCompress(file)) {
       setPhase("optimizing");
-      setMessage("Large clip — reducing the video quality so it uploads and analyzes faster…");
+      setMessage(
+        "Very large clip — lowering the quality first. This runs at normal playback speed, so it takes about as long as the clip itself.",
+      );
       file = await compressVideo(file, (f) => setProgress(2 + Math.round(f * 23)));
       setFileName(file.name);
       if (file !== original) {
@@ -193,8 +195,8 @@ function UploadPage() {
             <UploadCloud className="size-10 text-ice" strokeWidth={1.75} />
             <span className="mt-5 text-lg font-semibold">Drop your video here</span>
             <span className="mt-1 text-sm text-muted-foreground">
-              MP4, MOV or HEVC — up to 2 GB. Big clips are automatically shrunk to a lighter quality so analysis
-              starts sooner.
+              MP4, MOV or HEVC — up to 2 GB. Shorter clips (a shift or a period) upload and analyze much faster than
+              full games.
             </span>
 
             <input

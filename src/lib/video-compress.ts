@@ -8,7 +8,12 @@
  * keeping the full duration and real timestamps intact.
  */
 
-export const COMPRESS_THRESHOLD_BYTES = 300 * 1024 * 1024; // 300 MB
+/**
+ * Re-encoding happens in real time (a 10 minute clip needs ~10 minutes), so it
+ * is only worth it for genuinely huge files where the upload itself would be
+ * slower than the re-encode. Everything below this goes straight up.
+ */
+export const COMPRESS_THRESHOLD_BYTES = 900 * 1024 * 1024; // 900 MB
 
 const TARGET_HEIGHT = 720;
 const TARGET_FPS = 15;
