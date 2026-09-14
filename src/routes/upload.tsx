@@ -88,7 +88,9 @@ function UploadPage() {
 
     if (shouldCompress(file)) {
       setPhase("optimizing");
-      setMessage("Large clip — reducing the video quality so it uploads and analyzes faster…");
+      setMessage(
+        "Very large clip — lowering the quality first. This runs at normal playback speed, so it takes about as long as the clip itself.",
+      );
       file = await compressVideo(file, (f) => setProgress(2 + Math.round(f * 23)));
       setFileName(file.name);
       if (file !== original) {
