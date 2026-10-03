@@ -12,6 +12,7 @@ export const Route = createFileRoute("/api/analyze")({
             playerName?: string;
             jerseyNumber?: string;
             focusAreas?: string;
+            notifyEmail?: string;
           };
 
           const path = String(body.path ?? "");
@@ -47,6 +48,9 @@ export const Route = createFileRoute("/api/analyze")({
             .filter(Boolean)
             .slice(0, 8);
 
+          const rawEmail = String(body.notifyEmail ?? "").trim().slice(0, 200);
+          const notifyEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail) ? rawEmail : null;
+
           const indexId = await ensureIndex();
           const taskId = await createIndexingTaskFromUrl(indexId, videoUrl);
 
@@ -61,6 +65,7 @@ export const Route = createFileRoute("/api/analyze")({
               tl_index_id: indexId,
               tl_task_id: taskId,
               status: "indexing",
+              notify_email: notifyEmail,
             })
             .select("id")
             .single();
