@@ -173,6 +173,8 @@ export type Database = {
           jersey_number: string | null
           metrics: Json
           notes: Json
+          notified_at: string | null
+          notify_email: string | null
           overall_grade: string | null
           player_name: string
           status: string
@@ -192,6 +194,8 @@ export type Database = {
           jersey_number?: string | null
           metrics?: Json
           notes?: Json
+          notified_at?: string | null
+          notify_email?: string | null
           overall_grade?: string | null
           player_name?: string
           status?: string
@@ -211,6 +215,8 @@ export type Database = {
           jersey_number?: string | null
           metrics?: Json
           notes?: Json
+          notified_at?: string | null
+          notify_email?: string | null
           overall_grade?: string | null
           player_name?: string
           status?: string
@@ -227,7 +233,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      ensure_analysis_worker: { Args: never; Returns: undefined }
+      stop_analysis_worker: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

@@ -39,6 +39,7 @@ function UploadPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [playerName, setPlayerName] = useState("");
   const meta = useRef({ gameLabel: "", jerseyNumber: "", focusAreas: "" });
+  const [notifyEmail, setNotifyEmail] = useState("");
 
   const refresh = useServerFn(refreshAnalysis);
   const createUploadUrl = useServerFn(createVideoUploadUrl);
@@ -147,6 +148,7 @@ function UploadPage() {
             fileName: file.name,
             contentType: file.type || "video/mp4",
             playerName: playerName.trim(),
+            notifyEmail: notifyEmail.trim(),
             jerseyNumber: meta.current.jerseyNumber,
             focusAreas: [meta.current.gameLabel && `Game: ${meta.current.gameLabel}`, meta.current.focusAreas]
               .filter(Boolean)
@@ -158,7 +160,10 @@ function UploadPage() {
         setAnalysisId(json.id!);
         setPhase("indexing");
         setProgress(60);
-        setMessage("Indexing footage with Twelve Labs…");
+        setMessage(
+          "Processing is underway. You can close this page — the analysis keeps running and will appear in Recent submissions" +
+            (notifyEmail.trim() ? ", and we'll email you when it's done." : "."),
+        );
       } catch (err) {
         setPhase("failed");
         setMessage(err instanceof Error ? err.message : "Upload failed");
@@ -195,8 +200,7 @@ function UploadPage() {
             <UploadCloud className="size-10 text-ice" strokeWidth={1.75} />
             <span className="mt-5 text-lg font-semibold">Drop your video here</span>
             <span className="mt-1 text-sm text-muted-foreground">
-              MP4, MOV or HEVC — up to 2 GB. Shorter clips (a shift or a period) upload and analyze much faster than
-              full games.
+              MP4, MOV or HEVC — up to 2 GB. Clips over 300 MB are shrunk on your device first so they upload faster.
             </span>
 
             <input
@@ -271,6 +275,16 @@ function UploadPage() {
                 id="jersey"
                 placeholder="17"
                 onChange={(e) => (meta.current.jerseyNumber = e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="notify">Email me when it's done</Label>
+              <Input
+                id="notify"
+                type="email"
+                placeholder="you@example.com"
+                value={notifyEmail}
+                onChange={(e) => setNotifyEmail(e.target.value)}
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
