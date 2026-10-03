@@ -233,7 +233,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      ensure_analysis_worker: { Args: never; Returns: undefined }
+      stop_analysis_worker: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
