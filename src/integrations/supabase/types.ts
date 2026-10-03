@@ -173,6 +173,8 @@ export type Database = {
           jersey_number: string | null
           metrics: Json
           notes: Json
+          notified_at: string | null
+          notify_email: string | null
           overall_grade: string | null
           player_name: string
           status: string
@@ -192,6 +194,8 @@ export type Database = {
           jersey_number?: string | null
           metrics?: Json
           notes?: Json
+          notified_at?: string | null
+          notify_email?: string | null
           overall_grade?: string | null
           player_name?: string
           status?: string
@@ -211,6 +215,8 @@ export type Database = {
           jersey_number?: string | null
           metrics?: Json
           notes?: Json
+          notified_at?: string | null
+          notify_email?: string | null
           overall_grade?: string | null
           player_name?: string
           status?: string
