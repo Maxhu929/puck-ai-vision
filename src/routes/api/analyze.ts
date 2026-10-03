@@ -71,6 +71,7 @@ export const Route = createFileRoute("/api/analyze")({
             .single();
 
           if (error) throw error;
+          await supabaseAdmin.rpc("ensure_analysis_worker");
           return Response.json({ id: data.id, taskId });
         } catch (err) {
           const message = err instanceof Error ? err.message : "Upload failed";

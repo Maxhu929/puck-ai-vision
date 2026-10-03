@@ -86,6 +86,11 @@ export async function processPending(limit = 5) {
     const { row } = await advanceAnalysis(r.id);
     results.push({ id: r.id, status: row?.status ?? "unknown" });
   }
+  const { count } = await supabaseAdmin
+    .from("video_analyses")
+    .select("id", { count: "exact", head: true })
+    .in("status", ["indexing", "pending", "analyzing"]);
+  if (!count) await supabaseAdmin.rpc("stop_analysis_worker");
   return results;
 }
 
