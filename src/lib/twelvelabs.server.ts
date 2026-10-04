@@ -1,5 +1,5 @@
 const BASE = "https://api.twelvelabs.io/v1.3";
-const INDEX_NAME = "hockey-video-analyzer-p15";
+const INDEX_NAME = "hockey-video-analyzer";
 
 function apiKey() {
   const key = process.env.TWELVELABS_API_KEY;
@@ -44,7 +44,6 @@ export async function ensureIndex(): Promise<string> {
     body: JSON.stringify({
       index_name: INDEX_NAME,
       models: [
-        { model_name: "pegasus1.5", model_options: ["visual", "audio"] },
         { model_name: "marengo3.0", model_options: ["visual", "audio"] },
       ],
     }),
@@ -126,7 +125,6 @@ export async function analyzeVideo(videoId: string, focus: string[]): Promise<Ho
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       video_id: videoId,
-      model_name: "pegasus1.5",
       prompt: PROMPT + focusLine,
       temperature: 0.2,
       stream: false,
