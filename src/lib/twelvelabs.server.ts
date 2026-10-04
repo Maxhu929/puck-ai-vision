@@ -117,14 +117,21 @@ Skating, Puck Control, Shot Selection, Positioning, Hockey IQ.
 For metrics, give your best visual estimate for the tracked player (skating speeds in km/h, distance in meters, count the puck touches you can see). Never leave metrics out.`;
 
 
-/** Ask Pegasus for structured hockey coaching feedback on an indexed video. */
-export async function analyzeVideo(videoId: string, focus: string[]): Promise<HockeyAnalysis> {
+/** Ask Pegasus 1.5 for structured hockey coaching feedback on an indexed video. */
+export async function analyzeVideo(videoId: string, focus: string[], indexId?: string): Promise<HockeyAnalysis> {
   const focusLine = focus.length ? `\nPay special attention to: ${focus.join(", ")}.` : "";
+  // Pegasus 1.5 needs the asset id, not the indexed video id.
+  let assetId = videoId;
+  if (indexId) {
+    const info = await tl(`/indexes/${indexId}/videos/${videoId}`);
+    assetId = String(info.asset_id ?? videoId);
+  }
   const result = await tl("/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      video_id: videoId,
+      model_name: "pegasus1.5",
+      video: { type: "asset_id", asset_id: assetId },
       prompt: PROMPT + focusLine,
       temperature: 0.2,
       stream: false,

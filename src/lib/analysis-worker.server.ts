@@ -42,7 +42,7 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
       if (ageMs < 10 * 60 * 1000) return { row, error: null };
     }
 
-    const analysis = await analyzeVideo(videoId, row.focus_areas ?? []);
+    const analysis = await analyzeVideo(videoId, row.focus_areas ?? [], row.tl_index_id ?? undefined);
     const { data: done, error: updateError } = await supabaseAdmin
       .from("video_analyses")
       .update({
