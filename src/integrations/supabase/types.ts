@@ -178,6 +178,7 @@ export type Database = {
           overall_grade: string | null
           player_name: string
           status: string
+          storage_path: string | null
           summary: string | null
           tl_index_id: string | null
           tl_task_id: string | null
@@ -199,6 +200,7 @@ export type Database = {
           overall_grade?: string | null
           player_name?: string
           status?: string
+          storage_path?: string | null
           summary?: string | null
           tl_index_id?: string | null
           tl_task_id?: string | null
@@ -220,6 +222,7 @@ export type Database = {
           overall_grade?: string | null
           player_name?: string
           status?: string
+          storage_path?: string | null
           summary?: string | null
           tl_index_id?: string | null
           tl_task_id?: string | null

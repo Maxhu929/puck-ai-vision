@@ -66,6 +66,7 @@ export const Route = createFileRoute("/api/analyze")({
               tl_task_id: taskId,
               status: "indexing",
               notify_email: notifyEmail,
+              storage_path: path,
             })
             .select("id")
             .single();
