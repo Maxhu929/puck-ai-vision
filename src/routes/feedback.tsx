@@ -4,7 +4,8 @@ import { PageShell } from "@/components/AppNav";
 import { Progress } from "@/components/ui/progress";
 import { feedbackCategories, timelineFeedback } from "@/lib/hockey-data";
 import { useQuery } from "@tanstack/react-query";
-import { getAnalysis } from "@/lib/analysis.functions";
+import { useRef } from "react";
+import { getAnalysis, getVideoPlaybackUrl } from "@/lib/analysis.functions";
 import { suggestDrills } from "@/lib/drills";
 
 const title = "AI Feedback & Shift Grades | Hockey Video Analyzer";
@@ -37,6 +38,21 @@ function FeedbackPage() {
   });
 
   const record = data?.record ?? null;
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const playback = useQuery({
+    queryKey: ["playback", id],
+    queryFn: () => getVideoPlaybackUrl({ data: { id: id as string } }),
+    enabled: Boolean(id),
+    staleTime: 60 * 60 * 1000,
+  });
+  const videoUrl = playback.data?.url ?? null;
+  const seek = (time: string) => {
+    const parts = time.split(":").map(Number);
+    if (!videoRef.current || parts.some(Number.isNaN)) return;
+    videoRef.current.currentTime = parts.reduce((acc, n) => acc * 60 + n, 0);
+    void videoRef.current.play();
+    videoRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
   const notes = record?.notes.length ? record.notes : timelineFeedback;
   const categories = record?.categories.length ? record.categories : feedbackCategories;
   const grade = record?.overallGrade ?? "A-";
@@ -49,14 +65,29 @@ function FeedbackPage() {
     <PageShell title="AI Feedback" subtitle={subtitle}>
       <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
         <div className="space-y-6">
+          {videoUrl ? (
+            <video
+              ref={videoRef}
+              src={videoUrl}
+              controls
+              playsInline
+              preload="metadata"
+              className="surface-card aspect-video w-full rounded-2xl bg-background"
+            />
+          ) : (
           <div className="surface-card flex aspect-video items-center justify-center rounded-2xl">
             <div className="text-center">
               <PlayCircle className="mx-auto size-14 text-ice" strokeWidth={1.5} />
               <p className="mt-3 text-sm text-muted-foreground">
-                {record?.fileName ?? "Game footage playback"}
+                {playback.isLoading
+                  ? "Loading footage…"
+                  : record
+                    ? "Footage for this clip isn't available."
+                    : "Game footage playback"}
               </p>
             </div>
           </div>
+          )}
 
           <div className="space-y-3">
             <h2 className="text-xl font-semibold">Play-by-play notes</h2>
@@ -69,7 +100,13 @@ function FeedbackPage() {
                 )}
                 <div>
                   <p className="text-sm font-medium">
-                    <span className="font-display text-ice">{f.time}</span>
+                    {videoUrl ? (
+                      <button type="button" onClick={() => seek(f.time)} className="font-display text-ice underline-offset-2 hover:underline">
+                        {f.time}
+                      </button>
+                    ) : (
+                      <span className="font-display text-ice">{f.time}</span>
+                    )}
                     <span className="mx-2 text-muted-foreground">·</span>
                     {f.tag}
                   </p>

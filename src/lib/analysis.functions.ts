@@ -112,3 +112,31 @@ export const getAnalysis = createServerFn({ method: "GET" })
       .maybeSingle();
     return { record: row ? toRecord(row) : null };
   });
+/** Temporary playback link for an analysis's original footage. */
+export const getVideoPlaybackUrl = createServerFn({ method: "GET" })
+  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin
+      .from("video_analyses")
+      .select("storage_path, file_name")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (!row) return { url: null as string | null };
+    let path = row.storage_path as string | null;
+    if (!path && row.file_name) {
+      // Older uploads didn't record the path; find it by file name.
+      const { data: files } = await supabaseAdmin.storage.from("videos").list("uploads", { limit: 1000 });
+      const match = files?.find((f) => f.name.endsWith(`-${row.file_name}`));
+      if (match) {
+        path = `uploads/${match.name}`;
+        await supabaseAdmin.from("video_analyses").update({ storage_path: path }).eq("id", data.id);
+      }
+    }
+    if (!path) return { url: null as string | null };
+    const { data: signed } = await supabaseAdmin.storage.from("videos").createSignedUrl(path, 60 * 60 * 4);
+    if (!signed?.signedUrl) return { url: null as string | null };
+    const base = process.env["SUPABASE_URL"]!.replace(/\/$/, "");
+    const url = signed.signedUrl.startsWith("http") ? signed.signedUrl : `${base}/storage/v1${signed.signedUrl}`;
+    return { url };
+  });
