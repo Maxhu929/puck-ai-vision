@@ -169,17 +169,22 @@ export type Database = {
           error_message: string | null
           file_name: string | null
           focus_areas: string[]
+          handedness: string | null
           id: string
+          jersey_color: string | null
           jersey_number: string | null
           metrics: Json
           notes: Json
           notified_at: string | null
           notify_email: string | null
           overall_grade: string | null
+          player_identified: boolean | null
           player_name: string
+          position: string | null
           status: string
           storage_path: string | null
           summary: string | null
+          team_name: string | null
           tl_index_id: string | null
           tl_task_id: string | null
           tl_video_id: string | null
@@ -191,17 +196,22 @@ export type Database = {
           error_message?: string | null
           file_name?: string | null
           focus_areas?: string[]
+          handedness?: string | null
           id?: string
+          jersey_color?: string | null
           jersey_number?: string | null
           metrics?: Json
           notes?: Json
           notified_at?: string | null
           notify_email?: string | null
           overall_grade?: string | null
+          player_identified?: boolean | null
           player_name?: string
+          position?: string | null
           status?: string
           storage_path?: string | null
           summary?: string | null
+          team_name?: string | null
           tl_index_id?: string | null
           tl_task_id?: string | null
           tl_video_id?: string | null
@@ -213,17 +223,22 @@ export type Database = {
           error_message?: string | null
           file_name?: string | null
           focus_areas?: string[]
+          handedness?: string | null
           id?: string
+          jersey_color?: string | null
           jersey_number?: string | null
           metrics?: Json
           notes?: Json
           notified_at?: string | null
           notify_email?: string | null
           overall_grade?: string | null
+          player_identified?: boolean | null
           player_name?: string
+          position?: string | null
           status?: string
           storage_path?: string | null
           summary?: string | null
+          team_name?: string | null
           tl_index_id?: string | null
           tl_task_id?: string | null
           tl_video_id?: string | null

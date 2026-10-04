@@ -38,7 +38,7 @@ function UploadPage() {
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [playerName, setPlayerName] = useState("");
-  const meta = useRef({ gameLabel: "", jerseyNumber: "", focusAreas: "" });
+  const meta = useRef({ gameLabel: "", jerseyNumber: "", jerseyColor: "", team: "", position: "", handedness: "", focusAreas: "" });
   const [notifyEmail, setNotifyEmail] = useState("");
 
   const refresh = useServerFn(refreshAnalysis);
@@ -150,6 +150,10 @@ function UploadPage() {
             playerName: playerName.trim(),
             notifyEmail: notifyEmail.trim(),
             jerseyNumber: meta.current.jerseyNumber,
+            jerseyColor: meta.current.jerseyColor,
+            team: meta.current.team,
+            position: meta.current.position,
+            handedness: meta.current.handedness,
             focusAreas: [meta.current.gameLabel && `Game: ${meta.current.gameLabel}`, meta.current.focusAreas]
               .filter(Boolean)
               .join(" — "),
