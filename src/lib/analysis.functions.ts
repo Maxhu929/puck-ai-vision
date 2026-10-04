@@ -15,6 +15,11 @@ export type AnalysisRecord = {
   id: string;
   playerName: string;
   jerseyNumber: string | null;
+  jerseyColor: string | null;
+  teamName: string | null;
+  position: string | null;
+  handedness: string | null;
+  playerIdentified: boolean | null;
   focusAreas: string[];
   fileName: string | null;
   status: string;
@@ -36,6 +41,11 @@ function toRecord(row: any): AnalysisRecord {
     id: row.id,
     playerName: row.player_name,
     jerseyNumber: row.jersey_number,
+    jerseyColor: row.jersey_color ?? null,
+    teamName: row.team_name ?? null,
+    position: row.position ?? null,
+    handedness: row.handedness ?? null,
+    playerIdentified: row.player_identified ?? null,
     focusAreas: row.focus_areas ?? [],
     fileName: row.file_name,
     status: row.status,
