@@ -90,6 +90,7 @@ export type ClipMetrics = {
 export type HockeyAnalysis = {
   overallGrade: string;
   summary: string;
+  playerIdentified: boolean;
   notes: Array<{ time: string; tag: string; type: "positive" | "improvement"; text: string }>;
   categories: Array<{ name: string; score: number; note: string }>;
   metrics: ClipMetrics | null;
@@ -98,7 +99,8 @@ export type HockeyAnalysis = {
 const PROMPT = `You are an elite hockey skills coach reviewing this video.
 Return ONLY valid JSON (no markdown fences) matching exactly:
 {
-  "overallGrade": "letter grade such as A-, B+",
+  "playerIdentified": true or false,
+  "overallGrade": "letter grade such as A-, B+ (use \\"N/A\\" if the target player was not identified)",
   "summary": "2-3 sentence coaching summary of the player's performance",
   "notes": [{"time":"MM:SS","tag":"short play label","type":"positive|improvement","text":"one sentence of specific coaching feedback"}],
   "categories": [{"name":"Skating","score":0-100,"note":"one short sentence"}],
@@ -118,8 +120,18 @@ For metrics, give your best visual estimate for the tracked player (skating spee
 
 
 /** Ask Pegasus 1.5 for structured hockey coaching feedback on an indexed video. */
-export async function analyzeVideo(videoId: string, focus: string[], indexId?: string): Promise<HockeyAnalysis> {
+export async function analyzeVideo(
+  videoId: string,
+  focus: string[],
+  indexId?: string,
+  identity?: string,
+): Promise<HockeyAnalysis> {
   const focusLine = focus.length ? `\nPay special attention to: ${focus.join(", ")}.` : "";
+  const identityLine = identity
+    ? `\nYou are grading ONE specific player: ${identity}.
+Grade ONLY that player. Ignore every other skater — never mix another player's plays, timestamps, or metrics into the report.
+If you cannot confidently identify that player in this footage (wrong game, player on the bench, player not on the ice, too many players matching the description), set "playerIdentified" to false, "overallGrade" to "N/A", return empty "notes" and "categories" arrays, "metrics" as null, and use "summary" to explain what you could see (for example how many players wear the same number or color).`
+    : "";
   // Pegasus 1.5 needs the asset id, not the indexed video id.
   let assetId = videoId;
   if (indexId) {
@@ -132,7 +144,7 @@ export async function analyzeVideo(videoId: string, focus: string[], indexId?: s
     body: JSON.stringify({
       model_name: "pegasus1.5",
       video: { type: "asset_id", asset_id: assetId },
-      prompt: PROMPT + focusLine,
+      prompt: PROMPT + identityLine + focusLine,
       temperature: 0.2,
       stream: false,
     }),
@@ -148,6 +160,7 @@ export async function analyzeVideo(videoId: string, focus: string[], indexId?: s
   return {
     overallGrade: parsed.overallGrade ?? "B",
     summary: parsed.summary ?? "",
+    playerIdentified: parsed.playerIdentified !== false,
     notes: Array.isArray(parsed.notes) ? parsed.notes : [],
     categories: Array.isArray(parsed.categories) ? parsed.categories : [],
     metrics: parsed.metrics

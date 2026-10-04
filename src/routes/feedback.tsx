@@ -53,18 +53,43 @@ function FeedbackPage() {
     void videoRef.current.play();
     videoRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
   };
-  const notes = record?.notes.length ? record.notes : timelineFeedback;
-  const categories = record?.categories.length ? record.categories : feedbackCategories;
+  const notes = record ? (record.notes.length ? record.notes : []) : timelineFeedback;
+  const categories = record ? (record.categories.length ? record.categories : feedbackCategories) : feedbackCategories;
   const grade = record?.overallGrade ?? "A-";
   const drills = suggestDrills(categories);
-  const subtitle = record
-    ? `${record.playerName}${record.jerseyNumber ? ` · #${record.jerseyNumber}` : ""}`
+  const identityLine = record
+    ? [
+        record.playerName,
+        record.jerseyNumber ? `#${record.jerseyNumber}` : null,
+        record.jerseyColor ? `${record.jerseyColor} jersey` : null,
+        record.teamName,
+        record.position,
+        record.handedness ? `shoots ${record.handedness}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
     : "Bantam AA vs. Northside — 2nd Period · 12:40";
 
   return (
-    <PageShell title="AI Feedback" subtitle={subtitle}>
+    <PageShell title="AI Feedback" subtitle={identityLine}>
       <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
         <div className="space-y-6">
+          {record?.playerIdentified === false ? (
+            <div className="surface-card rounded-2xl px-5 py-4">
+              <div className="flex gap-3">
+                <AlertTriangle className="mt-0.5 size-5 shrink-0 text-gold" />
+                <div>
+                  <p className="text-sm font-medium">
+                    We couldn't confidently find {record.playerName} in this clip
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">{record.summary || "The footage may be from a different game, or the player may not be on the ice."}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Try again with the jersey number, jersey color and team filled in on the upload form so the AI can tell players apart.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
           {videoUrl ? (
             <video
               ref={videoRef}
@@ -91,6 +116,11 @@ function FeedbackPage() {
 
           <div className="space-y-3">
             <h2 className="text-xl font-semibold">Play-by-play notes</h2>
+            {notes.length === 0 ? (
+              <p className="surface-card rounded-xl px-5 py-4 text-sm text-muted-foreground">
+                No play-by-play notes for this clip yet.
+              </p>
+            ) : null}
             {notes.map((f, i) => (
               <article key={`${f.time}-${i}`} className="surface-card flex gap-4 rounded-xl px-5 py-4">
                 {f.type === "positive" ? (

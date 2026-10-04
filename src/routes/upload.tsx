@@ -38,7 +38,7 @@ function UploadPage() {
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [playerName, setPlayerName] = useState("");
-  const meta = useRef({ gameLabel: "", jerseyNumber: "", focusAreas: "" });
+  const meta = useRef({ gameLabel: "", jerseyNumber: "", jerseyColor: "", team: "", position: "", handedness: "", focusAreas: "" });
   const [notifyEmail, setNotifyEmail] = useState("");
 
   const refresh = useServerFn(refreshAnalysis);
@@ -150,6 +150,10 @@ function UploadPage() {
             playerName: playerName.trim(),
             notifyEmail: notifyEmail.trim(),
             jerseyNumber: meta.current.jerseyNumber,
+            jerseyColor: meta.current.jerseyColor,
+            team: meta.current.team,
+            position: meta.current.position,
+            handedness: meta.current.handedness,
             focusAreas: [meta.current.gameLabel && `Game: ${meta.current.gameLabel}`, meta.current.focusAreas]
               .filter(Boolean)
               .join(" — "),
@@ -268,6 +272,14 @@ function UploadPage() {
                 onChange={(e) => (meta.current.gameLabel = e.target.value)}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="team">Team</Label>
+              <Input
+                id="team"
+                placeholder="Northside Bantam AA"
+                onChange={(e) => (meta.current.team = e.target.value)}
+              />
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="jersey">Your jersey number</Label>
@@ -275,6 +287,31 @@ function UploadPage() {
                 id="jersey"
                 placeholder="17"
                 onChange={(e) => (meta.current.jerseyNumber = e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="jerseyColor">Jersey color</Label>
+              <Input
+                id="jerseyColor"
+                placeholder="Red"
+                onChange={(e) => (meta.current.jerseyColor = e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Helps the AI spot you among both teams.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="position">Position</Label>
+              <Input
+                id="position"
+                placeholder="Left wing"
+                onChange={(e) => (meta.current.position = e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="handedness">Shoots</Label>
+              <Input
+                id="handedness"
+                placeholder="Left or right"
+                onChange={(e) => (meta.current.handedness = e.target.value)}
               />
             </div>
             <div className="space-y-2">

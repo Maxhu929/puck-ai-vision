@@ -42,13 +42,31 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
       if (ageMs < 10 * 60 * 1000) return { row, error: null };
     }
 
-    const analysis = await analyzeVideo(videoId, row.focus_areas ?? [], row.tl_index_id ?? undefined);
+    // Describe the target player so the AI grades the right skater — and says
+    // so when it can't find them, instead of grading someone else.
+    const identity = [
+      row.player_name,
+      row.jersey_number ? `#${row.jersey_number}` : null,
+      row.jersey_color ? `wearing a ${row.jersey_color} jersey` : null,
+      row.team_name ? `playing for ${row.team_name}` : null,
+      row.position ? `position ${row.position}` : null,
+      row.handedness ? `shoots ${row.handedness}` : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    const analysis = await analyzeVideo(
+      videoId,
+      row.focus_areas ?? [],
+      row.tl_index_id ?? undefined,
+      identity || undefined,
+    );
     const { data: done, error: updateError } = await supabaseAdmin
       .from("video_analyses")
       .update({
         status: "ready",
         overall_grade: analysis.overallGrade,
         summary: analysis.summary,
+        player_identified: analysis.playerIdentified,
         notes: analysis.notes,
         categories: analysis.categories,
         metrics: (analysis.metrics ?? {}) as any,
