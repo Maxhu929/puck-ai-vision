@@ -11,6 +11,10 @@ export const Route = createFileRoute("/api/analyze")({
             contentType?: string;
             playerName?: string;
             jerseyNumber?: string;
+            jerseyColor?: string;
+            team?: string;
+            position?: string;
+            handedness?: string;
             focusAreas?: string;
             notifyEmail?: string;
           };
@@ -42,6 +46,10 @@ export const Route = createFileRoute("/api/analyze")({
           const fileName = String(body.fileName ?? "video.mp4").slice(0, 200);
           const playerName = String(body.playerName ?? "").slice(0, 80) || "Unknown Player";
           const jerseyNumber = String(body.jerseyNumber ?? "").slice(0, 8) || null;
+          const jerseyColor = String(body.jerseyColor ?? "").slice(0, 40) || null;
+          const teamName = String(body.team ?? "").slice(0, 80) || null;
+          const position = String(body.position ?? "").slice(0, 40) || null;
+          const handedness = String(body.handedness ?? "").slice(0, 20) || null;
           const focusAreas = String(body.focusAreas ?? "")
             .split(",")
             .map((s) => s.trim())
@@ -60,6 +68,10 @@ export const Route = createFileRoute("/api/analyze")({
             .insert({
               player_name: playerName,
               jersey_number: jerseyNumber,
+              jersey_color: jerseyColor,
+              team_name: teamName,
+              position: position,
+              handedness: handedness,
               focus_areas: focusAreas,
               file_name: fileName,
               tl_index_id: indexId,
