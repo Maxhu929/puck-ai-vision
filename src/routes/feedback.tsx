@@ -1,11 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, AlertTriangle, PlayCircle, Target } from "lucide-react";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { CheckCircle2, AlertTriangle, PlayCircle, Target, ClipboardList } from "lucide-react";
 import { PageShell } from "@/components/AppNav";
 import { Progress } from "@/components/ui/progress";
 import { feedbackCategories, timelineFeedback } from "@/lib/hockey-data";
 import { useQuery } from "@tanstack/react-query";
 import { useRef } from "react";
-import { getAnalysis, getVideoPlaybackUrl } from "@/lib/analysis.functions";
+import { getAnalysis, getVideoPlaybackUrl, listAnalyses } from "@/lib/analysis.functions";
 import { suggestDrills } from "@/lib/drills";
 import { ShiftLogger } from "@/components/ShiftLogger";
 
@@ -40,6 +40,7 @@ function FeedbackPage() {
 
   const record = data?.record ?? null;
   const videoRef = useRef<HTMLVideoElement>(null);
+  const loggerRef = useRef<HTMLDivElement>(null);
   const playback = useQuery({
     queryKey: ["playback", id],
     queryFn: () => getVideoPlaybackUrl({ data: { id: id as string } }),
@@ -73,8 +74,24 @@ function FeedbackPage() {
 
   return (
     <PageShell title="AI Feedback" subtitle={identityLine}>
+      {!record ? <ClipPicker /> : null}
       <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
         <div className="space-y-6">
+          {record && videoUrl ? (
+            <button
+              type="button"
+              onClick={() => loggerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
+              className="surface-card flex w-full items-center gap-3 rounded-xl px-5 py-3 text-left transition-colors hover:border-ice/40"
+            >
+              <ClipboardList className="size-5 shrink-0 text-ice" />
+              <span>
+                <span className="block text-sm font-medium">Log your shifts</span>
+                <span className="block text-xs text-muted-foreground">
+                  Tap on and off the ice as you watch — the AI then grades only your shifts.
+                </span>
+              </span>
+            </button>
+          ) : null}
           {record?.playerIdentified === false ? (
             <div className="surface-card rounded-2xl px-5 py-4">
               <div className="flex gap-3">
@@ -116,7 +133,9 @@ function FeedbackPage() {
           )}
 
           {record && videoUrl ? (
-            <ShiftLogger analysisId={record.id} initial={record.shifts} videoRef={videoRef} />
+            <div ref={loggerRef}>
+              <ShiftLogger analysisId={record.id} initial={record.shifts} videoRef={videoRef} />
+            </div>
           ) : null}
 
 
@@ -203,5 +222,50 @@ function FeedbackPage() {
         </aside>
       </div>
     </PageShell>
+  );
+}
+
+function ClipPicker() {
+  const { data, isLoading } = useQuery({ queryKey: ["analyses"], queryFn: () => listAnalyses() });
+  const items = data?.items ?? [];
+
+  return (
+    <div className="surface-card mb-8 rounded-2xl p-5">
+      <h2 className="text-lg font-semibold">Pick a clip to open</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Open a clip to watch the footage and log your shifts — the logger sits right under the video.
+      </p>
+      {isLoading ? (
+        <p className="mt-4 text-sm text-muted-foreground">Loading your clips…</p>
+      ) : items.length === 0 ? (
+        <p className="mt-4 text-sm text-muted-foreground">
+          No clips yet. Upload a video to get feedback and log your shifts.
+        </p>
+      ) : (
+        <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+          {items.map((a) => (
+            <li key={a.id}>
+              <Link
+                to="/feedback"
+                search={{ id: a.id }}
+                className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-4 py-3 transition-colors hover:bg-muted"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium">
+                    {a.playerName || "Untitled clip"}
+                    {a.jerseyNumber ? <span className="text-muted-foreground"> · #{a.jerseyNumber}</span> : null}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    {new Date(a.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })} ·{" "}
+                    {a.status === "ready" ? "graded" : a.status}
+                  </span>
+                </span>
+                {a.overallGrade ? <span className="font-display text-lg text-ice">{a.overallGrade}</span> : null}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
