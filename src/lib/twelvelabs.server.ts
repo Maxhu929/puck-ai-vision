@@ -126,12 +126,19 @@ export async function analyzeVideo(
   indexId?: string,
   identity?: string,
   shifts?: Array<{ start: number; end: number }>,
+  marks?: Array<{ time: number; x: number; y: number; w: number; h: number }>,
 ): Promise<HockeyAnalysis> {
   const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
   const shiftLine = shifts?.length
     ? `\nThe tracked player is on the ice ONLY during these video time ranges (logged by hand, treat as ground truth): ${shifts
         .map((s) => `${fmt(s.start)}-${fmt(s.end)}`)
         .join(", ")}. Outside these ranges the player is on the bench: never grade or timestamp plays outside them. Use these windows to lock onto the right skater. metrics.shifts must be ${shifts.length}.`
+    : "";
+  const pct = (n: number) => Math.round(n * 100);
+  const markLine = marks?.length
+    ? `\nThe user circled the tracked player on screen (treat as ground truth for who to grade): ${marks
+        .map((m) => `at ${fmt(m.time)} the player is inside the area ${pct(m.x)}-${pct(m.x + m.w)}% from the left edge and ${pct(m.y)}-${pct(m.y + m.h)}% from the top of the frame`)
+        .join("; ")}. Lock onto that skater at those moments and follow the same skater (jersey, number, build) through the rest of the clip.`
     : "";
   const focusLine = focus.length ? `\nPay special attention to: ${focus.join(", ")}.` : "";
   const identityLine = identity
@@ -151,7 +158,7 @@ If you cannot confidently identify that player in this footage (wrong game, play
     body: JSON.stringify({
       model_name: "pegasus1.5",
       video: { type: "asset_id", asset_id: assetId },
-      prompt: PROMPT + identityLine + shiftLine + focusLine,
+      prompt: PROMPT + identityLine + shiftLine + markLine + focusLine,
       temperature: 0.2,
       stream: false,
     }),

@@ -60,6 +60,7 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
       row.tl_index_id ?? undefined,
       identity || undefined,
       Array.isArray(row.shifts) ? (row.shifts as Array<{ start: number; end: number }>) : undefined,
+      Array.isArray(row.marks) ? (row.marks as Array<{ time: number; x: number; y: number; w: number; h: number }>) : undefined,
     );
     const { data: done, error: updateError } = await supabaseAdmin
       .from("video_analyses")
