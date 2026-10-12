@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Store player identification anchors as normalized video-frame boxes in the existing marks field; shift-start marking shares the video overlay so letterboxing cannot offset identification coordinates.

@@ -12,10 +12,14 @@ export function ShiftLogger({
   analysisId,
   initial,
   videoRef,
+  onShiftsChange,
+  onMarkShift,
 }: {
   analysisId: string;
   initial: Shift[];
   videoRef: RefObject<HTMLVideoElement | null>;
+  onShiftsChange: (shifts: Shift[]) => void;
+  onMarkShift: (time: number) => void;
 }) {
   const [shifts, setShifts] = useState<Shift[]>(initial);
   const [openStart, setOpenStart] = useState<number | null>(null);
@@ -23,12 +27,14 @@ export function ShiftLogger({
   const qc = useQueryClient();
 
   useEffect(() => setShifts(initial), [initial]);
+  useEffect(() => onShiftsChange(shifts), [shifts, onShiftsChange]);
 
   const now = () => videoRef.current?.currentTime ?? 0;
   const toggle = () => {
     const t = now();
     if (openStart === null) {
       setOpenStart(t);
+      onMarkShift(t);
     } else {
       if (t > openStart) setShifts((s) => [...s, { start: openStart, end: t }].sort((a, b) => a.start - b.start));
       setOpenStart(null);
