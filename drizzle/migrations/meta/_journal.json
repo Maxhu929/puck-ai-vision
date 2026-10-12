@@ -29,6 +29,13 @@
       "when": 1791130909764,
       "tag": "0003_player_identity_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791837941667,
+      "tag": "0004_add_shifts",
+      "breakpoints": true
     }
   ]
 }

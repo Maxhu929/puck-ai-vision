@@ -125,7 +125,14 @@ export async function analyzeVideo(
   focus: string[],
   indexId?: string,
   identity?: string,
+  shifts?: Array<{ start: number; end: number }>,
 ): Promise<HockeyAnalysis> {
+  const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+  const shiftLine = shifts?.length
+    ? `\nThe tracked player is on the ice ONLY during these video time ranges (logged by hand, treat as ground truth): ${shifts
+        .map((s) => `${fmt(s.start)}-${fmt(s.end)}`)
+        .join(", ")}. Outside these ranges the player is on the bench: never grade or timestamp plays outside them. Use these windows to lock onto the right skater. metrics.shifts must be ${shifts.length}.`
+    : "";
   const focusLine = focus.length ? `\nPay special attention to: ${focus.join(", ")}.` : "";
   const identityLine = identity
     ? `\nYou are grading ONE specific player: ${identity}.
@@ -144,7 +151,7 @@ If you cannot confidently identify that player in this footage (wrong game, play
     body: JSON.stringify({
       model_name: "pegasus1.5",
       video: { type: "asset_id", asset_id: assetId },
-      prompt: PROMPT + identityLine + focusLine,
+      prompt: PROMPT + identityLine + shiftLine + focusLine,
       temperature: 0.2,
       stream: false,
     }),
@@ -168,7 +175,7 @@ If you cannot confidently identify that player in this footage (wrong game, play
           topSpeedKph: Number(parsed.metrics.topSpeedKph) || 0,
           avgSpeedKph: Number(parsed.metrics.avgSpeedKph) || 0,
           distanceCoveredM: Number(parsed.metrics.distanceCoveredM) || 0,
-          shifts: Number(parsed.metrics.shifts) || 0,
+          shifts: shifts?.length || Number(parsed.metrics.shifts) || 0,
           puckTouches: Number(parsed.metrics.puckTouches) || 0,
           movementNote: String(parsed.metrics.movementNote ?? ""),
           tendencyNote: String(parsed.metrics.tendencyNote ?? ""),

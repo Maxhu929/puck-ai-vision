@@ -29,6 +29,7 @@ export type AnalysisRecord = {
   notes: Array<{ time: string; tag: string; type: string; text: string }>;
   categories: Array<{ name: string; score: number; note: string }>;
   metrics: ClipMetrics | null;
+  shifts: Array<{ start: number; end: number }>;
   createdAt: string;
 };
 
@@ -55,6 +56,7 @@ function toRecord(row: any): AnalysisRecord {
     notes: (row.notes ?? []) as AnalysisRecord["notes"],
     categories: (row.categories ?? []) as AnalysisRecord["categories"],
     metrics,
+    shifts: Array.isArray(row.shifts) ? row.shifts : [],
     createdAt: row.created_at,
   };
 }
@@ -149,4 +151,38 @@ export const getVideoPlaybackUrl = createServerFn({ method: "GET" })
     const base = process.env["SUPABASE_URL"]!.replace(/\/$/, "");
     const url = signed.signedUrl.startsWith("http") ? signed.signedUrl : `${base}/storage/v1${signed.signedUrl}`;
     return { url };
+  });
+
+/** Save hand-logged shifts (video seconds) and re-grade the clip using them. */
+export const saveShiftsAndRegrade = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        shifts: z
+          .array(z.object({ start: z.number().min(0), end: z.number().min(0) }).refine((s) => s.end > s.start))
+          .max(100),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin
+      .from("video_analyses")
+      .select("tl_video_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (!row) return { record: null as AnalysisRecord | null, error: "Analysis not found" };
+    const shifts = [...data.shifts].sort((a, b) => a.start - b.start);
+    if (!row.tl_video_id) {
+      await supabaseAdmin.from("video_analyses").update({ shifts }).eq("id", data.id);
+      return { record: null as AnalysisRecord | null, error: "Shifts saved. This clip is still processing, so they'll be used once it's ready." };
+    }
+    await supabaseAdmin
+      .from("video_analyses")
+      .update({ shifts, status: "pending", error_message: null })
+      .eq("id", data.id);
+    const { advanceAnalysis } = await import("@/lib/analysis-worker.server");
+    const { row: done, error } = await advanceAnalysis(data.id);
+    return { record: done ? toRecord(done) : (null as AnalysisRecord | null), error };
   });
