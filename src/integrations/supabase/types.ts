@@ -181,6 +181,7 @@ export type Database = {
           player_identified: boolean | null
           player_name: string
           position: string | null
+          shifts: Json
           status: string
           storage_path: string | null
           summary: string | null
@@ -208,6 +209,7 @@ export type Database = {
           player_identified?: boolean | null
           player_name?: string
           position?: string | null
+          shifts?: Json
           status?: string
           storage_path?: string | null
           summary?: string | null
@@ -235,6 +237,7 @@ export type Database = {
           player_identified?: boolean | null
           player_name?: string
           position?: string | null
+          shifts?: Json
           status?: string
           storage_path?: string | null
           summary?: string | null

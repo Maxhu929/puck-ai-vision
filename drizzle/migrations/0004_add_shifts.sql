@@ -1,0 +1,1 @@
+ALTER TABLE public.video_analyses ADD COLUMN IF NOT EXISTS shifts jsonb NOT NULL DEFAULT '[]'::jsonb;
