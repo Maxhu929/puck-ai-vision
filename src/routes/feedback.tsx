@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRef } from "react";
 import { getAnalysis, getVideoPlaybackUrl } from "@/lib/analysis.functions";
 import { suggestDrills } from "@/lib/drills";
+import { ShiftLogger } from "@/components/ShiftLogger";
 
 const title = "AI Feedback & Shift Grades | Hockey Video Analyzer";
 const description =
@@ -113,6 +114,11 @@ function FeedbackPage() {
             </div>
           </div>
           )}
+
+          {record && videoUrl ? (
+            <ShiftLogger analysisId={record.id} initial={record.shifts} videoRef={videoRef} />
+          ) : null}
+
 
           <div className="space-y-3">
             <h2 className="text-xl font-semibold">Play-by-play notes</h2>
