@@ -8,6 +8,7 @@ import { useRef } from "react";
 import { getAnalysis, getVideoPlaybackUrl, listAnalyses } from "@/lib/analysis.functions";
 import { suggestDrills } from "@/lib/drills";
 import { ShiftLogger } from "@/components/ShiftLogger";
+import { PlayerPen } from "@/components/PlayerPen";
 
 const title = "AI Feedback & Shift Grades | Hockey Video Analyzer";
 const description =
@@ -109,14 +110,27 @@ function FeedbackPage() {
             </div>
           ) : null}
           {videoUrl ? (
-            <video
-              ref={videoRef}
-              src={videoUrl}
-              controls
-              playsInline
-              preload="metadata"
-              className="surface-card aspect-video w-full rounded-2xl bg-background"
-            />
+            record ? (
+              <PlayerPen analysisId={record.id} initial={record.marks} videoRef={videoRef}>
+                <video
+                  ref={videoRef}
+                  src={videoUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="surface-card aspect-video w-full rounded-2xl bg-background"
+                />
+              </PlayerPen>
+            ) : (
+              <video
+                ref={videoRef}
+                src={videoUrl}
+                controls
+                playsInline
+                preload="metadata"
+                className="surface-card aspect-video w-full rounded-2xl bg-background"
+              />
+            )
           ) : (
           <div className="surface-card flex aspect-video items-center justify-center rounded-2xl">
             <div className="text-center">
