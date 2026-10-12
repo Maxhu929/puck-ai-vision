@@ -173,6 +173,7 @@ export type Database = {
           id: string
           jersey_color: string | null
           jersey_number: string | null
+          marks: Json
           metrics: Json
           notes: Json
           notified_at: string | null
@@ -201,6 +202,7 @@ export type Database = {
           id?: string
           jersey_color?: string | null
           jersey_number?: string | null
+          marks?: Json
           metrics?: Json
           notes?: Json
           notified_at?: string | null
@@ -229,6 +231,7 @@ export type Database = {
           id?: string
           jersey_color?: string | null
           jersey_number?: string | null
+          marks?: Json
           metrics?: Json
           notes?: Json
           notified_at?: string | null
