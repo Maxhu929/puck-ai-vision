@@ -4,7 +4,7 @@ import { PageShell } from "@/components/AppNav";
 import { Progress } from "@/components/ui/progress";
 import { feedbackCategories, timelineFeedback } from "@/lib/hockey-data";
 import { useQuery } from "@tanstack/react-query";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { getAnalysis, getVideoPlaybackUrl, listAnalyses } from "@/lib/analysis.functions";
 import { suggestDrills } from "@/lib/drills";
 import { ShiftLogger } from "@/components/ShiftLogger";
@@ -42,6 +42,8 @@ function FeedbackPage() {
   const record = data?.record ?? null;
   const videoRef = useRef<HTMLVideoElement>(null);
   const loggerRef = useRef<HTMLDivElement>(null);
+  const [draftShifts, setDraftShifts] = useState<Array<{ start: number; end: number }> | null>(null);
+  const [markRequest, setMarkRequest] = useState<{ time: number; sequence: number } | null>(null);
   const playback = useQuery({
     queryKey: ["playback", id],
     queryFn: () => getVideoPlaybackUrl({ data: { id: id as string } }),
@@ -111,7 +113,7 @@ function FeedbackPage() {
           ) : null}
           {videoUrl ? (
             record ? (
-              <PlayerPen analysisId={record.id} initial={record.marks} videoRef={videoRef}>
+              <PlayerPen key={record.id} analysisId={record.id} initial={record.marks} videoRef={videoRef} shifts={draftShifts ?? record.shifts} markRequest={markRequest}>
                 <video
                   ref={videoRef}
                   src={videoUrl}
@@ -148,7 +150,7 @@ function FeedbackPage() {
 
           {record && videoUrl ? (
             <div ref={loggerRef}>
-              <ShiftLogger analysisId={record.id} initial={record.shifts} videoRef={videoRef} />
+              <ShiftLogger key={record.id} analysisId={record.id} initial={record.shifts} videoRef={videoRef} onShiftsChange={setDraftShifts} onMarkShift={(time) => setMarkRequest((previous) => ({ time, sequence: (previous?.sequence ?? 0) + 1 }))} />
             </div>
           ) : null}
 
