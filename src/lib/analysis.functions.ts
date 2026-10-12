@@ -30,8 +30,11 @@ export type AnalysisRecord = {
   categories: Array<{ name: string; score: number; note: string }>;
   metrics: ClipMetrics | null;
   shifts: Array<{ start: number; end: number }>;
+  marks: PlayerMark[];
   createdAt: string;
 };
+
+export type PlayerMark = { time: number; x: number; y: number; w: number; h: number };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function toRecord(row: any): AnalysisRecord {
@@ -57,6 +60,7 @@ function toRecord(row: any): AnalysisRecord {
     categories: (row.categories ?? []) as AnalysisRecord["categories"],
     metrics,
     shifts: Array.isArray(row.shifts) ? row.shifts : [],
+    marks: Array.isArray(row.marks) ? row.marks : [],
     createdAt: row.created_at,
   };
 }
@@ -182,6 +186,41 @@ export const saveShiftsAndRegrade = createServerFn({ method: "POST" })
       .from("video_analyses")
       .update({ shifts, status: "pending", error_message: null })
       .eq("id", data.id);
+    const { advanceAnalysis } = await import("@/lib/analysis-worker.server");
+    const { row: done, error } = await advanceAnalysis(data.id);
+    return { record: done ? toRecord(done) : (null as AnalysisRecord | null), error };
+  });
+
+/** Save on-screen circles marking the tracked player, then re-grade using them. */
+export const savePlayerMarks = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        marks: z
+          .array(
+            z.object({
+              time: z.number().min(0),
+              x: z.number().min(0).max(1),
+              y: z.number().min(0).max(1),
+              w: z.number().min(0).max(1),
+              h: z.number().min(0).max(1),
+            }),
+          )
+          .max(20),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin.from("video_analyses").select("tl_video_id").eq("id", data.id).maybeSingle();
+    if (!row) return { record: null as AnalysisRecord | null, error: "Analysis not found" };
+    const marks = [...data.marks].sort((a, b) => a.time - b.time);
+    if (!row.tl_video_id) {
+      await supabaseAdmin.from("video_analyses").update({ marks }).eq("id", data.id);
+      return { record: null as AnalysisRecord | null, error: "Circles saved. This clip is still processing, so they'll be used once it's ready." };
+    }
+    await supabaseAdmin.from("video_analyses").update({ marks, status: "pending", error_message: null }).eq("id", data.id);
     const { advanceAnalysis } = await import("@/lib/analysis-worker.server");
     const { row: done, error } = await advanceAnalysis(data.id);
     return { record: done ? toRecord(done) : (null as AnalysisRecord | null), error };
