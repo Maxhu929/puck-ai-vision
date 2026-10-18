@@ -1,0 +1,4 @@
+- [ ] Add detailed player-identification clues to uploads and existing clips.
+- [ ] Strengthen evidence checks and prevent grades for uncertain identity.
+- [ ] Save shift boxes and on-ice windows together; validate coordinates and times.
+- [ ] Test identification rules and the feedback editing flow.

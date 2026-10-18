@@ -1,0 +1,4 @@
+ALTER TABLE public.video_analyses ADD COLUMN identity_details jsonb NOT NULL DEFAULT '{}'::jsonb, ADD COLUMN identification_evidence jsonb NOT NULL DEFAULT '{}'::jsonb, ADD COLUMN shifts_confirmed boolean NOT NULL DEFAULT false;
+COMMENT ON COLUMN public.video_analyses.identity_details IS 'Additional visual and contextual clues supplied by the user for the target player.';
+COMMENT ON COLUMN public.video_analyses.identification_evidence IS 'AI identification evidence and verified video intervals; not a guarantee of tracking accuracy.';
+COMMENT ON COLUMN public.video_analyses.shifts_confirmed IS 'True when the user explicitly saved on-ice windows; an empty list then means the target never appears on ice.';
