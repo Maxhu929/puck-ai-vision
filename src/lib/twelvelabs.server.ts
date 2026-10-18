@@ -147,7 +147,11 @@ export async function analyzeVideo(
         .join("; ")}. The skater inside a box at that moment IS the target — this is ground truth, equivalent to a readable jersey number. A legible jersey number is NOT required when a box exists, and teammates wearing the same color do not make identity uncertain at the anchor. Your job is to FOLLOW that exact skater forward from each anchor (keep track of their position, skating path, helmet, tape, stick side and build) for as long as you can keep them continuously distinguishable. Rate confidence on that tracking continuity, not on number readability: high when you can follow the boxed skater from the anchor through most of the shift; medium only if you lose them early; low only if no single skater is inside the box. Report verifiedIntervals as the stretches (starting at the anchor) where you followed the boxed skater. If you lose them after a pile-up or camera cut, end the interval there instead of rejecting the whole clip.`
     : "";
   const focusLine = focus.length ? `\nPay special attention to: ${focus.join(", ")}.` : "";
-  const identityLine = identity
+  const identityLine = identity && marks?.length
+    ? `\nYou are grading ONE specific player: the skater the user boxed (described as ${identity}). The box already identifies them — do NOT try to read or confirm the jersey number; an unreadable number is expected on wide camera angles and is NOT a reason to refuse.
+Grade ONLY that boxed skater. Ignore every other skater — never mix another player's plays, timestamps, or metrics into the report.
+Only refuse (playerIdentified false, "overallGrade" "N/A", empty "notes"/"categories", "metrics" null) if no skater is inside the box, or you lose the boxed skater immediately after the anchor.`
+    : identity
     ? `\nYou are grading ONE specific player: ${identity}.
 Grade ONLY that player. Ignore every other skater — never mix another player's plays, timestamps, or metrics into the report.
 If you cannot confidently identify that player in this footage (wrong game, player on the bench, player not on the ice, too many players matching the description), set "playerIdentified" to false, "overallGrade" to "N/A", return empty "notes" and "categories" arrays, "metrics" as null, and use "summary" to explain what you could see (for example how many players wear the same number or color).`
