@@ -42,6 +42,7 @@ function FeedbackPage() {
     queryKey: ["analysis", id],
     queryFn: () => getAnalysis({ data: { id: id as string } }),
     enabled: Boolean(id),
+    refetchInterval: query => ["pending", "indexing", "analyzing"].includes(query.state.data?.record?.status ?? "") ? 5000 : false,
   });
 
   const record = data?.record ?? null;
@@ -57,7 +58,7 @@ function FeedbackPage() {
     try {
       const result = await saveIdentification({ data: { id: record.id, details, marks: marks ?? draftMarks ?? record.marks, ...(draftShifts !== null ? { shifts: draftShifts } : {}) } });
       if (result.error) toast.error(result.error);
-      else toast.success(result.record?.playerIdentified ? "Identification saved and clip re-graded" : "Identification saved; check the identity result");
+      else toast.success("Identification saved. Re-grading continues in the background.");
       await qc.invalidateQueries({ queryKey: ["analysis", record.id] });
     } catch (error) { toast.error(error instanceof Error ? error.message : "Could not save identification"); }
     finally { setSavingIdentity(false); }

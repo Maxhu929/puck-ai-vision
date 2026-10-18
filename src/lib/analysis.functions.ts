@@ -183,7 +183,6 @@ export const savePlayerIdentification = createServerFn({ method: "POST" })
     if (saveError) throw new Error("Could not save identification. Refresh the clip and try again.");
     await supabaseAdmin.rpc("ensure_analysis_worker");
     if (!row.tl_video_id) return { record: null as AnalysisRecord | null, error: "Identification saved; it will be used when processing finishes." };
-    const { advanceAnalysis } = await import("@/lib/analysis-worker.server");
-    const { row: done, error } = await advanceAnalysis(data.id);
-    return { record: done ? toRecord(done) : null, error };
+    const { data: saved } = await supabaseAdmin.from("video_analyses").select("*").eq("id", data.id).single();
+    return { record: saved ? toRecord(saved) : null, error: null };
   });
