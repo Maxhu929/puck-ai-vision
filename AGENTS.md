@@ -15,3 +15,4 @@
 - Save draft shifts, player boxes and identity clues atomically before re-grading; only explicit high-confidence visual evidence permits grades, and note timestamps must fall inside verified on-ice windows.
 - Capture small JPEG player crops from newly drawn video boxes and send up to four through Twelve Labs structured reference-image prompts; coordinates alone are descriptive hints, not reliable spatial tracking.
 - Re-grades are queued for the existing background worker rather than held open in a browser request, so saving remains fast and feedback polls until processing finishes.
+- Playback arrows use dynamically imported browser-only jsfeat Lucas–Kanade optical flow with forward/backward checks; seeking or inconsistent motion hides the arrow, and experimental visual tracks never grant grading identity or replace saved user anchors.

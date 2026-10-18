@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { type PlayerMark } from "@/lib/analysis.functions";
 import { boxCheckpoints, BOX_INTERVAL_SECONDS } from "@/lib/player-identification";
+import { PlayerTrackingArrow } from "@/components/PlayerTrackingArrow";
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
 
@@ -24,6 +25,8 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
   const [time, setTime] = useState(0);
   const [saving, setSaving] = useState(false);
   const [guided, setGuided] = useState(false);
+  const [placingArrow, setPlacingArrow] = useState(false);
+  const [trackingRequest, setTrackingRequest] = useState<{ box: PlayerMark; sequence: number } | null>(null);
   const [frame, setFrame] = useState({ left: 0, top: 0, width: 100, height: 100 });
   const boxRef = useRef<HTMLDivElement>(null);
   const origin = useRef<[number, number] | null>(null);
@@ -109,6 +112,10 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
     const next = [...marks.filter((old) => Math.abs(old.time - m.time) >= 0.05), { ...m, ...(referenceImage ? { referenceImage } : {}) }].sort((a, b) => a.time - b.time);
     setMarks(next);
     setBoxOn(false);
+    if (placingArrow) {
+      setTrackingRequest(previous => ({ box: m, sequence: (previous?.sequence ?? 0) + 1 }));
+      setPlacingArrow(false);
+    }
     const upcoming = guided ? boxCheckpoints(shifts, next).find((c) => !c.covered) : undefined;
     if (upcoming) {
       toast.success(`Boxed at ${fmt(m.time)} — now box yourself at ${fmt(upcoming.time)}`);
@@ -119,7 +126,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
       setGuided(false);
     }
   };
-  const cancel = () => { setGuided(false); setBoxOn(false); setDraft(null); origin.current = null; draftRef.current = null; };
+  const cancel = () => { setPlacingArrow(false); setGuided(false); setBoxOn(false); setDraft(null); origin.current = null; draftRef.current = null; };
   const save = async () => {
     setSaving(true);
     try {
@@ -133,6 +140,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
   return <div className="space-y-3">
     <div ref={boxRef} className="relative">
       {children}
+      <PlayerTrackingArrow videoRef={videoRef} frame={frame} request={trackingRequest} onPlace={() => { setGuided(false); setPlacingArrow(true); beginBox(videoRef.current?.currentTime ?? 0); }} />
       <svg aria-label="Player bounding box overlay" viewBox="0 0 100 100" preserveAspectRatio="none"
         style={{ left: `${frame.left}%`, top: `${frame.top}%`, width: `${frame.width}%`, height: `${frame.height}%` }}
         className={`absolute ${boxOn ? "cursor-crosshair touch-none" : "pointer-events-none"}`}
@@ -149,7 +157,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
         {visible.map((m, i) => rectangle(m, String(i)))}
         {draft ? rectangle(draft, "draft") : null}
       </svg>
-      {boxOn && <div className="pointer-events-none absolute left-3 top-3 rounded-md bg-background/85 px-3 py-1 text-xs font-medium">Box player · {fmt(anchorTime.current)}</div>}
+      {boxOn && <div className="pointer-events-none absolute left-3 bottom-14 rounded-md bg-background/85 px-3 py-1 text-xs font-medium">{placingArrow ? "Select player for arrow" : "Box player"} · {fmt(anchorTime.current)}</div>}
     </div>
     <div className="space-y-3 border-b border-border py-3">
       <div className="flex flex-wrap items-center gap-2">

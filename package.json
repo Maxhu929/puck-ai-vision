@@ -60,6 +60,7 @@
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
+    "jsfeat": "^0.0.8",
     "lucide-react": "^0.575.0",
     "mediabunny": "^1.61.0",
     "motion": "^13.0.0",
