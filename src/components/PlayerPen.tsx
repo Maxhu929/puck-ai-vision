@@ -3,6 +3,7 @@ import { Scan, Undo2, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { type PlayerMark } from "@/lib/analysis.functions";
+import { boxCheckpoints, BOX_INTERVAL_SECONDS } from "@/lib/player-identification";
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
 
@@ -22,6 +23,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
   const [draft, setDraft] = useState<PlayerMark | null>(null);
   const [time, setTime] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [guided, setGuided] = useState(false);
   const [frame, setFrame] = useState({ left: 0, top: 0, width: 100, height: 100 });
   const boxRef = useRef<HTMLDivElement>(null);
   const origin = useRef<[number, number] | null>(null);
@@ -104,11 +106,20 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
       } catch { toast.warning("Box saved, but a reference photo could not be captured from this footage."); }
     }
     // Re-drawing a shift anchor replaces its box, rather than duplicating it.
-    setMarks((all) => [...all.filter((old) => Math.abs(old.time - m.time) >= 0.05), { ...m, ...(referenceImage ? { referenceImage } : {}) }].sort((a, b) => a.time - b.time));
+    const next = [...marks.filter((old) => Math.abs(old.time - m.time) >= 0.05), { ...m, ...(referenceImage ? { referenceImage } : {}) }].sort((a, b) => a.time - b.time);
+    setMarks(next);
     setBoxOn(false);
-    toast.success(`Player marked at ${fmt(m.time)}`);
+    const upcoming = guided ? boxCheckpoints(shifts, next).find((c) => !c.covered) : undefined;
+    if (upcoming) {
+      toast.success(`Boxed at ${fmt(m.time)} — now box yourself at ${fmt(upcoming.time)}`);
+      beginBox(upcoming.time);
+    } else {
+      if (guided) toast.success("Every checkpoint is boxed. Tap Save identification & re-grade.");
+      else toast.success(`Player marked at ${fmt(m.time)}`);
+      setGuided(false);
+    }
   };
-  const cancel = () => { setBoxOn(false); setDraft(null); origin.current = null; draftRef.current = null; };
+  const cancel = () => { setGuided(false); setBoxOn(false); setDraft(null); origin.current = null; draftRef.current = null; };
   const save = async () => {
     setSaving(true);
     try {
@@ -148,13 +159,27 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
         <Button onClick={() => setMarks((m) => m.slice(0, -1))} variant="ghost" size="icon" title="Undo last box" aria-label="Undo last box" disabled={!marks.length || saving}><Undo2 className="size-4" /></Button>
         <Button onClick={save} variant="outline" size="sm" disabled={saving || boxOn}>{saving && <Loader2 className="size-4 animate-spin" />}{saving ? "Re-grading…" : "Save identification & re-grade"}</Button>
       </div>
-      {shifts.length > 0 && <ul className="space-y-2">{shifts.map((s, i) => {
-        const marked = marks.some((m) => Math.abs(m.time - s.start) < 0.05);
-        return <li key={s.start} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <span>Shift {i + 1} · {fmt(s.start)} <span className="text-muted-foreground">· {marked ? "Box added" : "Not marked"}</span></span>
-          <Button variant="outline" size="sm" disabled={saving} onClick={() => beginBox(s.start)}><Scan className="size-4" />{marked ? "Redraw" : "Mark shift start"}</Button>
-        </li>;
-      })}</ul>}
+      {shifts.length > 0 && (() => {
+        const checkpoints = boxCheckpoints(shifts, marks);
+        const missing = checkpoints.filter((c) => !c.covered);
+        return <div className="space-y-2 rounded-md border border-border p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm"><span className="font-medium">{checkpoints.length - missing.length} of {checkpoints.length} boxes</span> <span className="text-muted-foreground">· box yourself every {BOX_INTERVAL_SECONDS} seconds while you're on the ice so the AI never has to follow you far.</span></p>
+            <Button size="sm" disabled={saving || !missing.length} onClick={() => { setGuided(true); beginBox(missing[0].time); }}>
+              <Scan className="size-4" />{missing.length ? `Box the ${missing.length} missing` : "All boxed"}
+            </Button>
+          </div>
+          <ul className="space-y-1">{shifts.map((s, i) => {
+            const own = checkpoints.filter((c) => c.shiftIndex === i);
+            return <li key={s.start} className="flex flex-wrap items-center gap-1 text-sm">
+              <span className="mr-1">Shift {i + 1}</span>
+              {own.map((c) => <Button key={c.time} size="sm" variant={c.covered ? "secondary" : "outline"} disabled={saving} title={c.covered ? "Redraw this box" : "Box this moment"} onClick={() => beginBox(c.time)}>
+                {fmt(c.time)}{c.covered ? " ✓" : ""}
+              </Button>)}
+            </li>;
+          })}</ul>
+        </div>;
+      })()}
       {marks.length > 0 && <div className="flex flex-wrap gap-2">{marks.map((m, i) => <div key={`${m.time}-${i}`} className="flex items-center gap-1">
         <Button variant="ghost" size="sm" onClick={() => { if (videoRef.current) { videoRef.current.pause(); videoRef.current.currentTime = m.time; } }}>Box at {fmt(m.time)}</Button>
         <Button variant="ghost" size="icon" aria-label={`Remove box at ${fmt(m.time)}`} title="Remove box" disabled={saving} onClick={() => setMarks((all) => all.filter((_, j) => j !== i))}><X className="size-3" /></Button>

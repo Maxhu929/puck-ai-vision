@@ -51,3 +51,15 @@ export function hasVerifiedIdentity(identified: unknown, evidence: Identificatio
   return identified === true && evidence?.confidence === "high" && evidence.observedClues.some(c => c.trim().length > 0)
     && evidence.verifiedIntervals.length > 0 && (shifts === undefined || evidence.verifiedIntervals.some(v => shifts.some(s => v.start < s.end && v.end > s.start)));
 }
+/** The AI can't follow one skater far on wide footage, so we ask for a box this often during every shift. */
+export const BOX_INTERVAL_SECONDS = 10;
+const BOX_TOLERANCE_SECONDS = 3;
+
+/** Moments inside each logged shift where the player should be boxed, and whether a box already covers each one. */
+export function boxCheckpoints(shifts: Array<{ start: number; end: number }>, marks: Array<{ time: number }>) {
+  return shifts.flatMap((s, shiftIndex) => {
+    const times: number[] = [];
+    for (let t = s.start; t < s.end - BOX_TOLERANCE_SECONDS || t === s.start; t += BOX_INTERVAL_SECONDS) times.push(Math.round(t * 1000) / 1000);
+    return times.map((time) => ({ shiftIndex, time, covered: marks.some((m) => Math.abs(m.time - time) <= BOX_TOLERANCE_SECONDS) }));
+  });
+}

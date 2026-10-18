@@ -1,6 +1,6 @@
 import { describe, test } from "node:test";
 import { strict as assert } from "node:assert";
-import { hasVerifiedIdentity, isVerifiedTime, marksSchema, shiftsSchema, type IdentificationEvidence } from "./player-identification";
+import { boxCheckpoints, hasVerifiedIdentity, isVerifiedTime, marksSchema, shiftsSchema, type IdentificationEvidence } from "./player-identification";
 const evidence: IdentificationEvidence = { confidence: "high", observedClues: ["Red #17 inside the marked box at 01:00"], uncertainty: "", verifiedIntervals: [{ start: 60, end: 90 }] };
 describe("Target player safeguards", () => {
   test("missing identity confirmation never passes", () => assert.equal(hasVerifiedIdentity(undefined, evidence), false));
@@ -14,4 +14,8 @@ describe("Target player safeguards", () => {
   test("shift end is off ice", () => assert.equal(isVerifiedTime("01:30", evidence), false));
   test("boxes cannot extend outside the frame", () => assert.equal(marksSchema.safeParse([{ time: 60, x: .9, y: .1, w: .2, h: .2 }]).success, false));
   test("overlapping shifts are rejected", () => assert.equal(shiftsSchema.safeParse([{ start: 1, end: 10 }, { start: 5, end: 15 }]).success, false));
+  test("a 68 second shift needs a box every 10 seconds", () => assert.deepEqual(boxCheckpoints([{ start: 0, end: 68 }], []).map(c => c.time), [0, 10, 20, 30, 40, 50, 60]));
+  test("a box within 3 seconds covers a checkpoint", () => assert.deepEqual(boxCheckpoints([{ start: 0, end: 25 }], [{ time: 0 }, { time: 12.5 }]).map(c => c.covered), [true, true, false]));
+  test("a box 4 seconds away does not cover a checkpoint", () => assert.equal(boxCheckpoints([{ start: 0, end: 25 }], [{ time: 14 }])[1].covered, false));
+  test("a very short shift still needs a start box", () => assert.deepEqual(boxCheckpoints([{ start: 5, end: 6 }], []).map(c => c.time), [5]));
 });
