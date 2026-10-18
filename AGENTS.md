@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 
 - Store player identification anchors as normalized video-frame boxes in the existing marks field; shift-start marking shares the video overlay so letterboxing cannot offset identification coordinates.
+- Box checkpoints inside each shift come from the shared boxCheckpoints helper (fixed interval + tolerance); the video model can't track one skater far on wide footage, so it only has to bridge gaps between boxes.
 - Keep player-identification schemas and grading safeguards in a browser-safe shared module, with extra clues and model evidence stored separately; user text descriptions are not proof of identity, but a user-drawn box is a confirmed anchor and the model only has to track the boxed skater from it (number legibility not required).
 - Save draft shifts, player boxes and identity clues atomically before re-grading; only explicit high-confidence visual evidence permits grades, and note timestamps must fall inside verified on-ice windows.
 - Capture small JPEG player crops from newly drawn video boxes and send up to four through Twelve Labs structured reference-image prompts; coordinates alone are descriptive hints, not reliable spatial tracking.
