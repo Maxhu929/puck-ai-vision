@@ -3,11 +3,16 @@ import { CheckCircle2, AlertTriangle, PlayCircle, Target, ClipboardList } from "
 import { PageShell } from "@/components/AppNav";
 import { Progress } from "@/components/ui/progress";
 import { feedbackCategories, timelineFeedback } from "@/lib/hockey-data";
-import { useQuery } from "@tanstack/react-query";
-import { useRef, useState } from "react";
-import { getAnalysis, getVideoPlaybackUrl, listAnalyses } from "@/lib/analysis.functions";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { getAnalysis, getVideoPlaybackUrl, listAnalyses, savePlayerIdentification, type PlayerMark } from "@/lib/analysis.functions";
 import { suggestDrills } from "@/lib/drills";
 import { ShiftLogger } from "@/components/ShiftLogger";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { PlayerIdentityFields } from "@/components/PlayerIdentityFields";
+import { identityDetailsSchema } from "@/lib/player-identification";
 import { PlayerPen } from "@/components/PlayerPen";
 
 const title = "AI Feedback & Shift Grades | Hockey Video Analyzer";
@@ -40,6 +45,23 @@ function FeedbackPage() {
   });
 
   const record = data?.record ?? null;
+  const [details, setDetails] = useState(() => identityDetailsSchema.parse({}));
+  const [draftMarks, setDraftMarks] = useState<PlayerMark[] | null>(null);
+  const [savingIdentity, setSavingIdentity] = useState(false);
+  const saveIdentification = useServerFn(savePlayerIdentification);
+  const qc = useQueryClient();
+  useEffect(() => { if (record) { setDetails(record.identityDetails); setDraftMarks(null); setDraftShifts(null); } }, [record]);
+  const saveAll = async (marks?: PlayerMark[]) => {
+    if (!record || savingIdentity) return;
+    setSavingIdentity(true);
+    try {
+      const result = await saveIdentification({ data: { id: record.id, details, marks: marks ?? draftMarks ?? record.marks, ...(draftShifts !== null ? { shifts: draftShifts } : {}) } });
+      if (result.error) toast.error(result.error);
+      else toast.success(result.record?.playerIdentified ? "Identification saved and clip re-graded" : "Identification saved; check the identity result");
+      await qc.invalidateQueries({ queryKey: ["analysis", record.id] });
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not save identification"); }
+    finally { setSavingIdentity(false); }
+  };
   const videoRef = useRef<HTMLVideoElement>(null);
   const loggerRef = useRef<HTMLDivElement>(null);
   const [draftShifts, setDraftShifts] = useState<Array<{ start: number; end: number }> | null>(null);
@@ -59,9 +81,9 @@ function FeedbackPage() {
     videoRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
   };
   const notes = record ? (record.notes.length ? record.notes : []) : timelineFeedback;
-  const categories = record ? (record.categories.length ? record.categories : feedbackCategories) : feedbackCategories;
-  const grade = record?.overallGrade ?? "A-";
-  const drills = suggestDrills(categories);
+  const categories = record ? (record.playerIdentified === true ? record.categories : []) : feedbackCategories;
+  const grade = record ? (record.playerIdentified === true ? record.overallGrade ?? "N/A" : "N/A") : "A-";
+  const drills = record && !categories.length ? [] : suggestDrills(categories);
   const identityLine = record
     ? [
         record.playerName,
@@ -105,7 +127,7 @@ function FeedbackPage() {
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">{record.summary || "The footage may be from a different game, or the player may not be on the ice."}</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Try again with the jersey number, jersey color and team filled in on the upload form so the AI can tell players apart.
+                    Add a box at each shift start and update the identifying clues below before re-grading.
                   </p>
                 </div>
               </div>
@@ -113,7 +135,7 @@ function FeedbackPage() {
           ) : null}
           {videoUrl ? (
             record ? (
-              <PlayerPen key={record.id} analysisId={record.id} initial={record.marks} videoRef={videoRef} shifts={draftShifts ?? record.shifts} markRequest={markRequest}>
+              <PlayerPen key={record.id} analysisId={record.id} initial={record.marks} videoRef={videoRef} shifts={draftShifts ?? record.shifts} markRequest={markRequest} onMarksChange={setDraftMarks} onSave={saveAll}>
                 <video
                   ref={videoRef}
                   src={videoUrl}
@@ -150,11 +172,21 @@ function FeedbackPage() {
 
           {record && videoUrl ? (
             <div ref={loggerRef}>
-              <ShiftLogger key={record.id} analysisId={record.id} initial={record.shifts} videoRef={videoRef} onShiftsChange={setDraftShifts} onMarkShift={(time) => setMarkRequest((previous) => ({ time, sequence: (previous?.sequence ?? 0) + 1 }))} />
+              <ShiftLogger key={record.id} analysisId={record.id} initial={record.shifts} videoRef={videoRef} onShiftsChange={setDraftShifts} onSave={saveAll} onMarkShift={(time) => setMarkRequest((previous) => ({ time, sequence: (previous?.sequence ?? 0) + 1 }))} />
             </div>
           ) : null}
 
 
+          {record && <section className="space-y-4 border-t border-border pt-5">
+            <h2 className="text-xl font-semibold">Player identification clues</h2>
+            <PlayerIdentityFields value={details} onChange={setDetails} />
+            <Button onClick={() => saveAll()} disabled={savingIdentity}>{savingIdentity ? "Checking identity…" : "Save identification & re-grade"}</Button>
+          </section>}
+          {record?.identificationEvidence && <section className="space-y-3 border-t border-border pt-5">
+            <h2 className="text-xl font-semibold">Identity check · {record.identificationEvidence.confidence} confidence</h2>
+            <ul className="space-y-2 text-sm text-muted-foreground">{record.identificationEvidence.observedClues.map((clue, i) => <li key={i}>{clue}</li>)}</ul>
+            {record.identificationEvidence.uncertainty && <p className="text-sm text-muted-foreground">{record.identificationEvidence.uncertainty}</p>}
+          </section>}
           <div className="space-y-3">
             <h2 className="text-xl font-semibold">Play-by-play notes</h2>
             {notes.length === 0 ? (
@@ -189,6 +221,7 @@ function FeedbackPage() {
 
           <div className="space-y-3">
             <h2 className="text-xl font-semibold">Suggested drills</h2>
+            {drills.length === 0 && <p className="text-sm text-muted-foreground">Drills will appear once the player is identified and graded.</p>}
             <p className="text-sm text-muted-foreground">
               Targeted at the lowest-scoring categories from this session.
             </p>
@@ -224,6 +257,7 @@ function FeedbackPage() {
 
           <div className="surface-card space-y-5 rounded-2xl p-6">
             <h2 className="text-lg font-semibold">Category ratings</h2>
+            {record && !categories.length && <p className="text-sm text-muted-foreground">No verified player ratings yet.</p>}
             {categories.map((c) => (
               <div key={c.name}>
                 <div className="flex items-center justify-between text-sm">

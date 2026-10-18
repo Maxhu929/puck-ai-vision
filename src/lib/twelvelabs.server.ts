@@ -140,10 +140,10 @@ export async function analyzeVideo(
         .map((s) => `${fmt(s.start)}-${fmt(s.end)}`)
         .join(", ")}. Outside these ranges the player is on the bench: never grade or timestamp plays outside them. Use these windows to lock onto the right skater. metrics.shifts must be ${shifts.length}.`
     : "";
-  const pct = (n: number) => Math.round(n * 100);
+  const pct = (n: number) => Math.round(n * 10000) / 100;
   const markLine = marks?.length
     ? `\nThe user boxed the target player in normalized VIDEO FRAME coordinates (not letterboxed screen coordinates): ${marks
-        .map((m) => `at ${fmt(m.time)} the player is inside the area ${pct(m.x)}-${pct(m.x + m.w)}% from the left edge and ${pct(m.y)}-${pct(m.y + m.h)}% from the top of the frame`)
+        .map((m) => `at video second ${m.time.toFixed(3)} (${fmt(m.time)}) the player is inside the area ${pct(m.x)}-${pct(m.x + m.w)}% from the left edge and ${pct(m.y)}-${pct(m.y + m.h)}% from the top of the frame`)
         .join("; ")}. At each anchor inspect the actual frame and use the box only to locate the target. If multiple skaters are inside, do not guess. Re-establish identity at every shift; after occlusion, camera cuts, line changes or leaving the frame stop attribution until matching visible clues or another box confirms identity. Never assume a box tracks motion.`
     : "";
   const focusLine = focus.length ? `\nPay special attention to: ${focus.join(", ")}.` : "";
