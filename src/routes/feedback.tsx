@@ -52,11 +52,12 @@ function FeedbackPage() {
   const saveIdentification = useServerFn(savePlayerIdentification);
   const qc = useQueryClient();
   useEffect(() => { if (record) { setDetails(record.identityDetails); setDraftMarks(null); setDraftShifts(null); } }, [record]);
-  const saveAll = async (marks?: PlayerMark[]) => {
+  const saveAll = async (marks?: PlayerMark[], shifts?: Array<{ start: number; end: number }>) => {
     if (!record || savingIdentity) return;
     setSavingIdentity(true);
     try {
-      const result = await saveIdentification({ data: { id: record.id, details, marks: marks ?? draftMarks ?? record.marks, ...(draftShifts !== null ? { shifts: draftShifts } : {}) } });
+      const shiftWindows = shifts ?? draftShifts;
+      const result = await saveIdentification({ data: { id: record.id, details, marks: marks ?? draftMarks ?? record.marks, ...(shiftWindows !== null ? { shifts: shiftWindows } : {}) } });
       if (result.error) toast.error(result.error);
       else toast.success("Identification saved. Re-grading continues in the background.");
       await qc.invalidateQueries({ queryKey: ["analysis", record.id] });
@@ -174,7 +175,7 @@ function FeedbackPage() {
 
           {record && videoUrl ? (
             <div ref={loggerRef}>
-              <ShiftLogger key={record.id} analysisId={record.id} initial={record.shifts} videoRef={videoRef} onShiftsChange={setDraftShifts} onSave={saveAll} onMarkShift={(time) => setMarkRequest((previous) => ({ time, sequence: (previous?.sequence ?? 0) + 1 }))} />
+              <ShiftLogger key={record.id} analysisId={record.id} initial={record.shifts} videoRef={videoRef} onShiftsChange={setDraftShifts} onSave={(shifts) => saveAll(undefined, shifts)} onMarkShift={(time) => setMarkRequest((previous) => ({ time, sequence: (previous?.sequence ?? 0) + 1 }))} />
             </div>
           ) : null}
 

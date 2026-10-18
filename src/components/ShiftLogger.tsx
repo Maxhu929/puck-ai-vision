@@ -18,7 +18,7 @@ export function ShiftLogger({
   videoRef: RefObject<HTMLVideoElement | null>;
   onShiftsChange: (shifts: Shift[]) => void;
   onMarkShift: (time: number) => void;
-  onSave: () => Promise<void>;
+  onSave: (shifts: Shift[]) => Promise<void>;
 }) {
   const [shifts, setShifts] = useState<Shift[]>(initial);
   const [openStart, setOpenStart] = useState<number | null>(null);
@@ -51,7 +51,7 @@ export function ShiftLogger({
     setSaving(true);
     try {
       onShiftsChange(shifts);
-      await onSave();
+      await onSave(shifts);
     } catch {
       toast.error("Couldn't re-grade right now. Try again in a minute.");
     } finally {

@@ -12,3 +12,5 @@
 - Store player identification anchors as normalized video-frame boxes in the existing marks field; shift-start marking shares the video overlay so letterboxing cannot offset identification coordinates.
 - Keep player-identification schemas and grading safeguards in a browser-safe shared module, with extra clues and model evidence stored separately; user descriptions are not proof of identity.
 - Save draft shifts, player boxes and identity clues atomically before re-grading; only explicit high-confidence visual evidence permits grades, and note timestamps must fall inside verified on-ice windows.
+- Capture small JPEG player crops from newly drawn video boxes and send up to four through Twelve Labs structured reference-image prompts; coordinates alone are descriptive hints, not reliable spatial tracking.
+- Re-grades are queued for the existing background worker rather than held open in a browser request, so saving remains fast and feedback polls until processing finishes.

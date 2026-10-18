@@ -49,5 +49,5 @@ export function isVerifiedTime(time: string, evidence: IdentificationEvidence, s
 }
 export function hasVerifiedIdentity(identified: unknown, evidence: IdentificationEvidence | null, shifts?: Array<{ start: number; end: number }>) {
   return identified === true && evidence?.confidence === "high" && evidence.observedClues.some(c => c.trim().length > 0)
-    && evidence.verifiedIntervals.length > 0 && (shifts === undefined || shifts.length > 0);
+    && evidence.verifiedIntervals.length > 0 && (shifts === undefined || evidence.verifiedIntervals.some(v => shifts.some(s => v.start < s.end && v.end > s.start)));
 }
