@@ -171,6 +171,8 @@ export type Database = {
           focus_areas: string[]
           handedness: string | null
           id: string
+          identification_evidence: Json
+          identity_details: Json
           jersey_color: string | null
           jersey_number: string | null
           marks: Json
@@ -183,6 +185,7 @@ export type Database = {
           player_name: string
           position: string | null
           shifts: Json
+          shifts_confirmed: boolean
           status: string
           storage_path: string | null
           summary: string | null
@@ -200,6 +203,8 @@ export type Database = {
           focus_areas?: string[]
           handedness?: string | null
           id?: string
+          identification_evidence?: Json
+          identity_details?: Json
           jersey_color?: string | null
           jersey_number?: string | null
           marks?: Json
@@ -212,6 +217,7 @@ export type Database = {
           player_name?: string
           position?: string | null
           shifts?: Json
+          shifts_confirmed?: boolean
           status?: string
           storage_path?: string | null
           summary?: string | null
@@ -229,6 +235,8 @@ export type Database = {
           focus_areas?: string[]
           handedness?: string | null
           id?: string
+          identification_evidence?: Json
+          identity_details?: Json
           jersey_color?: string | null
           jersey_number?: string | null
           marks?: Json
@@ -241,6 +249,7 @@ export type Database = {
           player_name?: string
           position?: string | null
           shifts?: Json
+          shifts_confirmed?: boolean
           status?: string
           storage_path?: string | null
           summary?: string | null

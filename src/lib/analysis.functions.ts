@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { identityDetailsSchema, evidenceSchema, shiftsSchema, marksSchema, type IdentityDetails, type IdentificationEvidence } from "./player-identification";
 
 export type ClipMetrics = {
   topSpeedKph: number;
@@ -20,6 +21,8 @@ export type AnalysisRecord = {
   position: string | null;
   handedness: string | null;
   playerIdentified: boolean | null;
+  identityDetails: IdentityDetails;
+  identificationEvidence: IdentificationEvidence | null;
   focusAreas: string[];
   fileName: string | null;
   status: string;
@@ -34,7 +37,7 @@ export type AnalysisRecord = {
   createdAt: string;
 };
 
-export type PlayerMark = { time: number; x: number; y: number; w: number; h: number };
+export type PlayerMark = { time: number; x: number; y: number; w: number; h: number; referenceImage?: string };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function toRecord(row: any): AnalysisRecord {
@@ -50,6 +53,8 @@ function toRecord(row: any): AnalysisRecord {
     position: row.position ?? null,
     handedness: row.handedness ?? null,
     playerIdentified: row.player_identified ?? null,
+    identityDetails: identityDetailsSchema.parse(row.identity_details ?? {}),
+    identificationEvidence: evidenceSchema.safeParse(row.identification_evidence).success ? row.identification_evidence : null,
     focusAreas: row.focus_areas ?? [],
     fileName: row.file_name,
     status: row.status,
@@ -157,71 +162,27 @@ export const getVideoPlaybackUrl = createServerFn({ method: "GET" })
     return { url };
   });
 
-/** Save hand-logged shifts (video seconds) and re-grade the clip using them. */
-export const saveShiftsAndRegrade = createServerFn({ method: "POST" })
-  .inputValidator((input) =>
-    z
-      .object({
-        id: z.string().uuid(),
-        shifts: z
-          .array(z.object({ start: z.number().min(0), end: z.number().min(0) }).refine((s) => s.end > s.start))
-          .max(100),
-      })
-      .parse(input),
-  )
+/** Save identification clues, boxes and shifts atomically before re-grading. */
+export const savePlayerIdentification = createServerFn({ method: "POST" })
+  .inputValidator(input => z.object({
+    id: z.string().uuid(), details: identityDetailsSchema.optional(),
+    shifts: shiftsSchema.optional(), marks: marksSchema.optional(),
+  }).parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row } = await supabaseAdmin
-      .from("video_analyses")
-      .select("tl_video_id")
-      .eq("id", data.id)
-      .maybeSingle();
+    const { data: row } = await supabaseAdmin.from("video_analyses").select("tl_video_id, status").eq("id", data.id).maybeSingle();
     if (!row) return { record: null as AnalysisRecord | null, error: "Analysis not found" };
-    const shifts = [...data.shifts].sort((a, b) => a.start - b.start);
-    if (!row.tl_video_id) {
-      await supabaseAdmin.from("video_analyses").update({ shifts }).eq("id", data.id);
-      return { record: null as AnalysisRecord | null, error: "Shifts saved. This clip is still processing, so they'll be used once it's ready." };
-    }
-    await supabaseAdmin
-      .from("video_analyses")
-      .update({ shifts, status: "pending", error_message: null })
-      .eq("id", data.id);
-    const { advanceAnalysis } = await import("@/lib/analysis-worker.server");
-    const { row: done, error } = await advanceAnalysis(data.id);
-    return { record: done ? toRecord(done) : (null as AnalysisRecord | null), error };
-  });
-
-/** Save on-screen circles marking the tracked player, then re-grade using them. */
-export const savePlayerMarks = createServerFn({ method: "POST" })
-  .inputValidator((input) =>
-    z
-      .object({
-        id: z.string().uuid(),
-        marks: z
-          .array(
-            z.object({
-              time: z.number().min(0),
-              x: z.number().min(0).max(1),
-              y: z.number().min(0).max(1),
-              w: z.number().min(0).max(1),
-              h: z.number().min(0).max(1),
-            }),
-          )
-          .max(20),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row } = await supabaseAdmin.from("video_analyses").select("tl_video_id").eq("id", data.id).maybeSingle();
-    if (!row) return { record: null as AnalysisRecord | null, error: "Analysis not found" };
-    const marks = [...data.marks].sort((a, b) => a.time - b.time);
-    if (!row.tl_video_id) {
-      await supabaseAdmin.from("video_analyses").update({ marks }).eq("id", data.id);
-      return { record: null as AnalysisRecord | null, error: "Circles saved. This clip is still processing, so they'll be used once it's ready." };
-    }
-    await supabaseAdmin.from("video_analyses").update({ marks, status: "pending", error_message: null }).eq("id", data.id);
-    const { advanceAnalysis } = await import("@/lib/analysis-worker.server");
-    const { row: done, error } = await advanceAnalysis(data.id);
-    return { record: done ? toRecord(done) : (null as AnalysisRecord | null), error };
+    if (row.status === "analyzing") return { record: null as AnalysisRecord | null, error: "This clip is being analyzed. Wait for it to finish before changing identification." };
+    const changes = {
+      ...(data.details ? { identity_details: data.details } : {}),
+      ...(data.shifts !== undefined ? { shifts: data.shifts, shifts_confirmed: true } : {}),
+      ...(data.marks !== undefined ? { marks: data.marks } : {}),
+      ...(row.tl_video_id ? { status: "pending", error_message: null, overall_grade: null, player_identified: null, identification_evidence: {}, notes: [], categories: [], metrics: {} } : {}),
+    };
+    const { error: saveError } = await supabaseAdmin.from("video_analyses").update(changes).eq("id", data.id).eq("status", row.status).select("id").single();
+    if (saveError) throw new Error("Could not save identification. Refresh the clip and try again.");
+    await supabaseAdmin.rpc("ensure_analysis_worker");
+    if (!row.tl_video_id) return { record: null as AnalysisRecord | null, error: "Identification saved; it will be used when processing finishes." };
+    const { data: saved } = await supabaseAdmin.from("video_analyses").select("*").eq("id", data.id).single();
+    return { record: saved ? toRecord(saved) : null, error: null };
   });

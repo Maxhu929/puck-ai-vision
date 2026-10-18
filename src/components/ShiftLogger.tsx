@@ -1,33 +1,32 @@
 import { useEffect, useState, type RefObject } from "react";
 import { LogIn, LogOut, Trash2, Loader2 } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { saveShiftsAndRegrade } from "@/lib/analysis.functions";
 
 type Shift = { start: number; end: number };
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
 
 export function ShiftLogger({
-  analysisId,
   initial,
   videoRef,
   onShiftsChange,
   onMarkShift,
+  onSave,
 }: {
   analysisId: string;
   initial: Shift[];
   videoRef: RefObject<HTMLVideoElement | null>;
   onShiftsChange: (shifts: Shift[]) => void;
   onMarkShift: (time: number) => void;
+  onSave: (shifts: Shift[]) => Promise<void>;
 }) {
   const [shifts, setShifts] = useState<Shift[]>(initial);
   const [openStart, setOpenStart] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
-  const qc = useQueryClient();
+
 
   useEffect(() => setShifts(initial), [initial]);
-  useEffect(() => onShiftsChange(shifts), [shifts, onShiftsChange]);
+  const updateShifts = (next: Shift[]) => { setShifts(next); onShiftsChange(next); };
 
   const now = () => videoRef.current?.currentTime ?? 0;
   const toggle = () => {
@@ -36,7 +35,8 @@ export function ShiftLogger({
       setOpenStart(t);
       onMarkShift(t);
     } else {
-      if (t > openStart) setShifts((s) => [...s, { start: openStart, end: t }].sort((a, b) => a.start - b.start));
+      if (t <= openStart) { toast.error("Move to the end of your shift before tapping Off ice."); return; }
+      updateShifts([...shifts, { start: openStart, end: t }].sort((a, b) => a.start - b.start));
       setOpenStart(null);
     }
   };
@@ -50,10 +50,8 @@ export function ShiftLogger({
   const save = async () => {
     setSaving(true);
     try {
-      const res = await saveShiftsAndRegrade({ data: { id: analysisId, shifts } });
-      if (res.error) toast.error(res.error);
-      else toast.success("Re-graded using your shifts");
-      await qc.invalidateQueries({ queryKey: ["analysis", analysisId] });
+      onShiftsChange(shifts);
+      await onSave(shifts);
     } catch {
       toast.error("Couldn't re-grade right now. Try again in a minute.");
     } finally {
@@ -74,6 +72,7 @@ export function ShiftLogger({
           {openStart === null ? <LogIn className="size-4" /> : <LogOut className="size-4" />}
           {openStart === null ? "On ice" : `Off ice (on since ${fmt(openStart)})`}
         </Button>
+        {openStart !== null && <Button variant="ghost" onClick={() => setOpenStart(null)}>Cancel shift</Button>}
         <span className="text-sm text-muted-foreground">
           {shifts.length} shift{shifts.length === 1 ? "" : "s"} · {fmt(total)} ice time
         </span>
@@ -88,7 +87,7 @@ export function ShiftLogger({
               <button
                 type="button"
                 aria-label={`Remove shift ${i + 1}`}
-                onClick={() => setShifts((all) => all.filter((_, j) => j !== i))}
+                onClick={() => updateShifts(shifts.filter((_, j) => j !== i))}
                 className="text-muted-foreground hover:text-destructive"
               >
                 <Trash2 className="size-4" />
@@ -97,9 +96,9 @@ export function ShiftLogger({
           ))}
         </ul>
       )}
-      <Button onClick={save} disabled={saving || shifts.length === 0 || openStart !== null} className="w-full">
+      <Button onClick={save} disabled={saving || openStart !== null} className="w-full">
         {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-        {saving ? "Re-grading… (about a minute)" : "Save shifts & re-grade"}
+        {saving ? "Re-grading… (about a minute)" : "Save identification & re-grade"}
       </Button>
     </div>
   );

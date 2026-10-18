@@ -1,21 +1,21 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { Scan, Undo2, Loader2, X } from "lucide-react";
-import { useServerFn } from "@tanstack/react-start";
-import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { savePlayerMarks, type PlayerMark } from "@/lib/analysis.functions";
+import { type PlayerMark } from "@/lib/analysis.functions";
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
 
 /** Normalized boxes are stored in video-frame coordinates, not the letterboxed player. */
-export function PlayerPen({ analysisId, initial, videoRef, children, shifts, markRequest }: {
+export function PlayerPen({ analysisId, initial, videoRef, children, shifts, markRequest, onMarksChange, onSave }: {
   analysisId: string;
   initial: PlayerMark[];
   videoRef: RefObject<HTMLVideoElement | null>;
   children: ReactNode;
   shifts: Array<{ start: number; end: number }>;
   markRequest: { time: number; sequence: number } | null;
+  onMarksChange: (marks: PlayerMark[]) => void;
+  onSave: (marks?: PlayerMark[]) => Promise<void>;
 }) {
   const [marks, setMarks] = useState<PlayerMark[]>(initial);
   const [boxOn, setBoxOn] = useState(false);
@@ -27,8 +27,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
   const origin = useRef<[number, number] | null>(null);
   const draftRef = useRef<PlayerMark | null>(null);
   const anchorTime = useRef(0);
-  const qc = useQueryClient();
-  const saveMarks = useServerFn(savePlayerMarks);
+  useEffect(() => onMarksChange(marks), [marks, onMarksChange]);
 
   useEffect(() => setMarks(initial), [initial]);
   useEffect(() => {
@@ -88,8 +87,24 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
     draftRef.current = null;
     setDraft(null);
     if (m.w < 0.01 || m.h < 0.01) return;
+    const v = videoRef.current;
+    let referenceImage: string | undefined;
+    if (v && !v.seeking && v.videoWidth > 0 && Math.abs(v.currentTime - m.time) < 0.1) {
+      try {
+        const canvas = document.createElement("canvas");
+        const cropWidth = m.w * v.videoWidth, cropHeight = m.h * v.videoHeight;
+        const scale = Math.min(1, 320 / Math.max(cropWidth, cropHeight));
+        canvas.width = Math.max(1, Math.round(cropWidth * scale));
+        canvas.height = Math.max(1, Math.round(cropHeight * scale));
+        const context = canvas.getContext("2d");
+        if (context) {
+          context.drawImage(v, m.x * v.videoWidth, m.y * v.videoHeight, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
+          referenceImage = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+        }
+      } catch { toast.warning("Box saved, but a reference photo could not be captured from this footage."); }
+    }
     // Re-drawing a shift anchor replaces its box, rather than duplicating it.
-    setMarks((all) => [...all.filter((old) => Math.abs(old.time - m.time) >= 0.05), m].sort((a, b) => a.time - b.time));
+    setMarks((all) => [...all.filter((old) => Math.abs(old.time - m.time) >= 0.05), { ...m, ...(referenceImage ? { referenceImage } : {}) }].sort((a, b) => a.time - b.time));
     setBoxOn(false);
     toast.success(`Player marked at ${fmt(m.time)}`);
   };
@@ -97,10 +112,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
   const save = async () => {
     setSaving(true);
     try {
-      const res = await saveMarks({ data: { id: analysisId, marks } });
-      if (res.error) toast.error(res.error);
-      else toast.success("Re-graded using your player boxes");
-      await qc.invalidateQueries({ queryKey: ["analysis", analysisId] });
+      await onSave(marks);
     } catch { toast.error("Couldn't re-grade right now. Try again in a minute."); }
     finally { setSaving(false); }
   };
@@ -134,7 +146,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
           {boxOn ? <X className="size-4" /> : <Scan className="size-4" />}{boxOn ? "Cancel box" : "Box player"}
         </Button>
         <Button onClick={() => setMarks((m) => m.slice(0, -1))} variant="ghost" size="icon" title="Undo last box" aria-label="Undo last box" disabled={!marks.length || saving}><Undo2 className="size-4" /></Button>
-        <Button onClick={save} variant="outline" size="sm" disabled={saving || boxOn || !marks.length}>{saving && <Loader2 className="size-4 animate-spin" />}{saving ? "Re-grading…" : "Save boxes & re-grade"}</Button>
+        <Button onClick={save} variant="outline" size="sm" disabled={saving || boxOn}>{saving && <Loader2 className="size-4 animate-spin" />}{saving ? "Re-grading…" : "Save identification & re-grade"}</Button>
       </div>
       {shifts.length > 0 && <ul className="space-y-2">{shifts.map((s, i) => {
         const marked = marks.some((m) => Math.abs(m.time - s.start) < 0.05);

@@ -1,0 +1,5 @@
+- [x] Add detailed player-identification clues to uploads and existing clips.
+- [x] Strengthen evidence checks and prevent grades for uncertain identity.
+- [x] Save shift boxes and on-ice windows together; validate coordinates and times.
+- [x] Test identification rules and real feedback saving/readback.
+- [ ] Verify reference-crop drawing and model identification on real footage: newest clip cannot play in the test browser (media error 4); needs playable footage with a user-confirmed player box.

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { identityDetailsSchema } from "./player-identification";
 import { getTask, analyzeVideo } from "@/lib/twelvelabs.server";
 
 /**
@@ -59,8 +60,9 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
       row.focus_areas ?? [],
       row.tl_index_id ?? undefined,
       identity || undefined,
-      Array.isArray(row.shifts) ? (row.shifts as Array<{ start: number; end: number }>) : undefined,
+      row.shifts_confirmed || (Array.isArray(row.shifts) && row.shifts.length > 0) ? (row.shifts as Array<{ start: number; end: number }>) : undefined,
       Array.isArray(row.marks) ? (row.marks as Array<{ time: number; x: number; y: number; w: number; h: number }>) : undefined,
+      identityDetailsSchema.parse(row.identity_details ?? {}),
     );
     const { data: done, error: updateError } = await supabaseAdmin
       .from("video_analyses")
@@ -69,6 +71,7 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
         overall_grade: analysis.overallGrade,
         summary: analysis.summary,
         player_identified: analysis.playerIdentified,
+        identification_evidence: analysis.identificationEvidence as any ?? {},
         notes: analysis.notes,
         categories: analysis.categories,
         metrics: (analysis.metrics ?? {}) as any,
