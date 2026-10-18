@@ -9,6 +9,8 @@ import { Progress } from "@/components/ui/progress";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { createVideoUploadUrl, listAnalyses, refreshAnalysis } from "@/lib/analysis.functions";
+import { PlayerIdentityFields } from "@/components/PlayerIdentityFields";
+import { identityDetailsSchema } from "@/lib/player-identification";
 import { compressVideo, shouldCompress } from "@/lib/video-compress";
 
 
@@ -39,6 +41,7 @@ function UploadPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [playerName, setPlayerName] = useState("");
   const meta = useRef({ gameLabel: "", jerseyNumber: "", jerseyColor: "", team: "", position: "", handedness: "", focusAreas: "" });
+  const [identityDetails, setIdentityDetails] = useState(() => identityDetailsSchema.parse({}));
   const [notifyEmail, setNotifyEmail] = useState("");
 
   const refresh = useServerFn(refreshAnalysis);
@@ -148,6 +151,7 @@ function UploadPage() {
             fileName: file.name,
             contentType: file.type || "video/mp4",
             playerName: playerName.trim(),
+            identityDetails,
             notifyEmail: notifyEmail.trim(),
             jerseyNumber: meta.current.jerseyNumber,
             jerseyColor: meta.current.jerseyColor,
@@ -161,7 +165,8 @@ function UploadPage() {
         });
         const json = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
         if (!res.ok) throw new Error(json.error ?? "Analysis could not be started");
-        setAnalysisId(json.id!);
+        if (!json.id) throw new Error("No clip was returned. Please try again.");
+        setAnalysisId(json.id);
         setPhase("indexing");
         setProgress(60);
         setMessage(
@@ -333,6 +338,10 @@ function UploadPage() {
               />
             </div>
           </div>
+          <section className="space-y-4 border-t border-border pt-5">
+            <h2 className="text-lg font-semibold">Player identification clues</h2>
+            <PlayerIdentityFields value={identityDetails} onChange={setIdentityDetails} />
+          </section>
         </div>
 
         <aside className="space-y-4">
@@ -345,13 +354,13 @@ function UploadPage() {
                   <p className="mt-1 text-sm text-muted-foreground">
                     {new Date(s.createdAt).toLocaleDateString()} · {s.status}
                   </p>
-                  {s.overallGrade ? (
+                  {s.id ? (
                     <Link
                       to="/feedback"
                       search={{ id: s.id }}
                       className="mt-2 block font-display text-lg font-bold text-turf"
                     >
-                      {s.overallGrade}
+                      {s.playerIdentified === false ? "Add player boxes" : s.overallGrade || "Open clip"}
                     </Link>
                   ) : null}
                 </li>

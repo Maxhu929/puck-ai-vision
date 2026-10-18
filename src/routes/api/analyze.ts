@@ -1,3 +1,4 @@
+import { identityDetailsSchema } from "@/lib/player-identification";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/api/analyze")({
@@ -17,8 +18,11 @@ export const Route = createFileRoute("/api/analyze")({
             handedness?: string;
             focusAreas?: string;
             notifyEmail?: string;
+            identityDetails?: unknown;
           };
 
+          const identityResult = identityDetailsSchema.safeParse(body.identityDetails ?? {});
+          if (!identityResult.success) return Response.json({ error: "Check your player identification details." }, { status: 400 });
           const path = String(body.path ?? "");
           if (!path.startsWith("uploads/") || path.includes("..")) {
             return Response.json({ error: "Invalid storage path" }, { status: 400 });
@@ -67,6 +71,7 @@ export const Route = createFileRoute("/api/analyze")({
             .from("video_analyses")
             .insert({
               player_name: playerName,
+              identity_details: identityResult.data,
               jersey_number: jerseyNumber,
               jersey_color: jerseyColor,
               team_name: teamName,
