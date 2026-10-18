@@ -144,7 +144,7 @@ export async function analyzeVideo(
   const markLine = marks?.length
     ? `\nUSER-CONFIRMED IDENTITY ANCHORS. The user personally pointed at themselves on the video by drawing a box in normalized VIDEO FRAME coordinates: ${marks
         .map((m) => `at video second ${m.time.toFixed(3)} (${fmt(m.time)}) the target is the skater inside ${pct(m.x)}-${pct(m.x + m.w)}% from the left edge and ${pct(m.y)}-${pct(m.y + m.h)}% from the top of the frame`)
-        .join("; ")}. The skater inside a box at that moment IS the target — this is ground truth, equivalent to a readable jersey number. A legible jersey number is NOT required when a box exists, and teammates wearing the same color do not make identity uncertain at the anchor. Your job is to FOLLOW that exact skater forward from each anchor (keep track of their position, skating path, helmet, tape, stick side and build) for as long as you can keep them continuously distinguishable. Rate confidence on that tracking continuity, not on number readability: high when you can follow the boxed skater from the anchor through most of the shift; medium only if you lose them early; low only if no single skater is inside the box. Report verifiedIntervals as the stretches (starting at the anchor) where you followed the boxed skater. If you lose them after a pile-up or camera cut, end the interval there instead of rejecting the whole clip.`
+        .join("; ")}. The skater inside a box at that moment IS the target — this is ground truth, equivalent to a readable jersey number. A legible jersey number is NOT required when a box exists, and teammates wearing the same color do not make identity uncertain at the anchor. Boxes are usually about 10 seconds apart, so you only need to FOLLOW the boxed skater from one box to the next (never more than a few seconds of tracking). Your job is to FOLLOW that exact skater forward from each anchor (keep track of their position, skating path, helmet, tape, stick side and build) for as long as you can keep them continuously distinguishable. Rate confidence on that tracking continuity, not on number readability: high when you can follow the boxed skater from the anchor through most of the shift; medium only if you lose them early; low only if no single skater is inside the box. Report verifiedIntervals as the stretches (starting at the anchor) where you followed the boxed skater. If you lose them after a pile-up or camera cut, end the interval there instead of rejecting the whole clip.`
     : "";
   const focusLine = focus.length ? `\nPay special attention to: ${focus.join(", ")}.` : "";
   const identityLine = identity && marks?.length
@@ -164,7 +164,9 @@ If you cannot confidently identify that player in this footage (wrong game, play
     const info = await tl(`/indexes/${indexId}/videos/${videoId}`);
     assetId = String(info.asset_id ?? videoId);
   }
-  const references = (marks ?? []).filter(m => m.referenceImage).slice(0, 4);
+  const withImages = (marks ?? []).filter(m => m.referenceImage);
+  // Spread the four reference photos across the clip instead of using only the first boxes.
+  const references = withImages.length <= 4 ? withImages : [0, 1, 2, 3].map(i => withImages[Math.round(i * (withImages.length - 1) / 3)]);
   const prompt = PROMPT + identityLine + shiftLine + markLine + detailLine + focusLine + verificationLine;
   const referencePrompt = references.map((m, i) => ` <@target_${i}> is a crop of the user-boxed target at video second ${m.time.toFixed(3)}. Use visible equipment and jersey details as a reference, not proof of continuous tracking.`).join("\n");
   const result = await tl("/analyze", {
