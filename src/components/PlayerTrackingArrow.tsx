@@ -61,7 +61,7 @@ export function PlayerTrackingArrow({ videoRef, frame, request, onPlace }: {
     {box && <div aria-label="Following player arrow" className="pointer-events-none absolute" style={{ left: `${frame.left + (box.x + box.w / 2) * frame.width}%`, top: `${frame.top + box.y * frame.height}%` }}>
       <ArrowDown strokeWidth={3} className="size-8 -translate-x-1/2 -translate-y-full text-ice drop-shadow-md" />
     </div>}
-    <div className="absolute bottom-full left-0 mb-2 flex max-w-full flex-wrap items-center gap-2 bg-background/90 px-2 py-1 rounded-md">
+    <div className="absolute top-2 left-2 right-2 flex flex-wrap items-center gap-2 bg-background/90 px-2 py-1 rounded-md">
       <Button size="sm" variant="outline" onClick={() => { stop(); onPlace(); }} disabled={state === "loading"}>
         {state === "loading" ? <Loader2 className="size-4 animate-spin" /> : <Crosshair className="size-4" />}Place tracking arrow
       </Button>
