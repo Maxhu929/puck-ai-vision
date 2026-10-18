@@ -37,7 +37,7 @@ export type AnalysisRecord = {
   createdAt: string;
 };
 
-export type PlayerMark = { time: number; x: number; y: number; w: number; h: number };
+export type PlayerMark = { time: number; x: number; y: number; w: number; h: number; referenceImage?: string };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function toRecord(row: any): AnalysisRecord {

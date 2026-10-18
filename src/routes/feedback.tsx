@@ -138,6 +138,7 @@ function FeedbackPage() {
               <PlayerPen key={record.id} analysisId={record.id} initial={record.marks} videoRef={videoRef} shifts={draftShifts ?? record.shifts} markRequest={markRequest} onMarksChange={setDraftMarks} onSave={saveAll}>
                 <video
                   ref={videoRef}
+                  crossOrigin="anonymous"
                   src={videoUrl}
                   controls
                   playsInline

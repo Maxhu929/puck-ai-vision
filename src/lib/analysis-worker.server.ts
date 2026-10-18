@@ -60,7 +60,7 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
       row.focus_areas ?? [],
       row.tl_index_id ?? undefined,
       identity || undefined,
-      row.shifts_confirmed || row.shifts?.length ? (row.shifts as Array<{ start: number; end: number }>) : undefined,
+      row.shifts_confirmed || (Array.isArray(row.shifts) && row.shifts.length > 0) ? (row.shifts as Array<{ start: number; end: number }>) : undefined,
       Array.isArray(row.marks) ? (row.marks as Array<{ time: number; x: number; y: number; w: number; h: number }>) : undefined,
       identityDetailsSchema.parse(row.identity_details ?? {}),
     );

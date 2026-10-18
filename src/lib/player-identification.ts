@@ -26,6 +26,7 @@ export const shiftsSchema = z.array(shiftSchema).max(100).transform(s => [...s].
 export const marksSchema = z.array(z.object({
   time: z.number().finite().min(0), x: z.number().finite().min(0).max(1), y: z.number().finite().min(0).max(1),
   w: z.number().finite().positive().max(1), h: z.number().finite().positive().max(1),
+  referenceImage: z.string().max(160000).regex(/^[A-Za-z0-9+/]+={0,2}$/).optional(),
 }).refine(m => m.x + m.w <= 1.000001 && m.y + m.h <= 1.000001, "Box must fit inside the video frame")).max(100);
 
 export const evidenceSchema = z.object({

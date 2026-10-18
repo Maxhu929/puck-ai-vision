@@ -129,7 +129,7 @@ export async function analyzeVideo(
   indexId?: string,
   identity?: string,
   shifts?: Array<{ start: number; end: number }>,
-  marks?: Array<{ time: number; x: number; y: number; w: number; h: number }>,
+  marks?: Array<{ time: number; x: number; y: number; w: number; h: number; referenceImage?: string }>,
   details?: IdentityDetails,
 ): Promise<HockeyAnalysis> {
   const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
@@ -137,7 +137,7 @@ export async function analyzeVideo(
     ? "\nThe user explicitly confirmed ZERO on-ice shifts. The target is not on the ice; return playerIdentified false and no grades, notes, categories or metrics."
     : shifts?.length
     ? `\nThe tracked player is on the ice ONLY during these video time ranges (logged by hand, treat as ground truth): ${shifts
-        .map((s) => `${fmt(s.start)}-${fmt(s.end)}`)
+        .map((s) => `${s.start.toFixed(3)}-${s.end.toFixed(3)} video seconds`)
         .join(", ")}. Outside these ranges the player is on the bench: never grade or timestamp plays outside them. Use these windows to lock onto the right skater. metrics.shifts must be ${shifts.length}.`
     : "";
   const pct = (n: number) => Math.round(n * 10000) / 100;
@@ -160,13 +160,16 @@ If you cannot confidently identify that player in this footage (wrong game, play
     const info = await tl(`/indexes/${indexId}/videos/${videoId}`);
     assetId = String(info.asset_id ?? videoId);
   }
+  const references = (marks ?? []).filter(m => m.referenceImage).slice(0, 4);
+  const prompt = PROMPT + identityLine + shiftLine + markLine + detailLine + focusLine + verificationLine;
+  const referencePrompt = references.map((m, i) => ` <@target_${i}> is a crop of the user-boxed target at video second ${m.time.toFixed(3)}. Use visible equipment and jersey details as a reference, not proof of continuous tracking.`).join("\n");
   const result = await tl("/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model_name: "pegasus1.5",
       video: { type: "asset_id", asset_id: assetId },
-      prompt: PROMPT + identityLine + shiftLine + markLine + detailLine + focusLine + verificationLine,
+      ...(references.length ? { prompt_v2: { input_text: prompt + "\n" + referencePrompt, media_sources: references.map((m, i) => ({ name: `target_${i}`, media_type: "image", base64_string: m.referenceImage })) } } : { prompt }),
       temperature: 0.2,
       stream: false,
     }),

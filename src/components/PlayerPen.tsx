@@ -87,8 +87,24 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
     draftRef.current = null;
     setDraft(null);
     if (m.w < 0.01 || m.h < 0.01) return;
+    const v = videoRef.current;
+    let referenceImage: string | undefined;
+    if (v && !v.seeking && v.videoWidth > 0 && Math.abs(v.currentTime - m.time) < 0.1) {
+      try {
+        const canvas = document.createElement("canvas");
+        const cropWidth = m.w * v.videoWidth, cropHeight = m.h * v.videoHeight;
+        const scale = Math.min(1, 320 / Math.max(cropWidth, cropHeight));
+        canvas.width = Math.max(1, Math.round(cropWidth * scale));
+        canvas.height = Math.max(1, Math.round(cropHeight * scale));
+        const context = canvas.getContext("2d");
+        if (context) {
+          context.drawImage(v, m.x * v.videoWidth, m.y * v.videoHeight, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
+          referenceImage = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+        }
+      } catch { toast.warning("Box saved, but a reference photo could not be captured from this footage."); }
+    }
     // Re-drawing a shift anchor replaces its box, rather than duplicating it.
-    setMarks((all) => [...all.filter((old) => Math.abs(old.time - m.time) >= 0.05), m].sort((a, b) => a.time - b.time));
+    setMarks((all) => [...all.filter((old) => Math.abs(old.time - m.time) >= 0.05), { ...m, ...(referenceImage ? { referenceImage } : {}) }].sort((a, b) => a.time - b.time));
     setBoxOn(false);
     toast.success(`Player marked at ${fmt(m.time)}`);
   };
