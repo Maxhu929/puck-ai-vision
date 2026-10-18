@@ -51,7 +51,15 @@ function FeedbackPage() {
   const [savingIdentity, setSavingIdentity] = useState(false);
   const saveIdentification = useServerFn(savePlayerIdentification);
   const qc = useQueryClient();
-  useEffect(() => { if (record) { setDetails(record.identityDetails); setDraftMarks(null); setDraftShifts(null); } }, [record]);
+  const initializedClip = useRef<string | null>(null);
+  useEffect(() => {
+    if (!id) initializedClip.current = null;
+    if (!record || record.id !== id || initializedClip.current === record.id) return;
+    initializedClip.current = record.id;
+    setDetails(record.identityDetails);
+    setDraftMarks(null);
+    setDraftShifts(null);
+  }, [id, record]);
   const saveAll = async (marks?: PlayerMark[], shifts?: Array<{ start: number; end: number }>) => {
     if (!record || savingIdentity) return;
     setSavingIdentity(true);
