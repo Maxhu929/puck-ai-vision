@@ -131,6 +131,7 @@ export async function analyzeVideo(
   shifts?: Array<{ start: number; end: number }>,
   marks?: Array<{ time: number; x: number; y: number; w: number; h: number; referenceImage?: string }>,
   details?: IdentityDetails,
+  highlighted?: boolean,
 ): Promise<HockeyAnalysis> {
   const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
   const shiftLine = shifts !== undefined && shifts.length === 0
@@ -145,6 +146,9 @@ export async function analyzeVideo(
     ? `\nUSER-CONFIRMED IDENTITY ANCHORS. The user personally pointed at themselves on the video by drawing a box in normalized VIDEO FRAME coordinates: ${marks
         .map((m) => `at video second ${m.time.toFixed(3)} (${fmt(m.time)}) the target is the skater inside ${pct(m.x)}-${pct(m.x + m.w)}% from the left edge and ${pct(m.y)}-${pct(m.y + m.h)}% from the top of the frame`)
         .join("; ")}. The skater inside a box at that moment IS the target — this is ground truth, equivalent to a readable jersey number. A legible jersey number is NOT required when a box exists, and teammates wearing the same color do not make identity uncertain at the anchor. Boxes are usually about 10 seconds apart, so you only need to FOLLOW the boxed skater from one box to the next (never more than a few seconds of tracking). Your job is to FOLLOW that exact skater forward from each anchor (keep track of their position, skating path, helmet, tape, stick side and build) for as long as you can keep them continuously distinguishable. Rate confidence on that tracking continuity, not on number readability: high when you can follow the boxed skater from the anchor through most of the shift; medium only if you lose them early; low only if no single skater is inside the box. Report verifiedIntervals as the stretches (starting at the anchor) where you followed the boxed skater. If you lose them after a pile-up or camera cut, end the interval there instead of rejecting the whole clip.`
+    : "";
+  const highlightLine = highlighted
+    ? "\nTHE USER EDITED THIS VIDEO BEFORE YOU SAW IT: a bright magenta outline with a magenta ring at the skates and a magenta arrow above the head is drawn on the target player. Wherever that magenta marker appears, the skater under it IS the target (ground truth). Grade that skater. Where the marker is absent, only continue following the same skater if you can keep them continuously distinguishable; otherwise leave that time out of verifiedIntervals. The marker is an annotation, not part of the game: never describe it as equipment."
     : "";
   const focusLine = focus.length ? `\nPay special attention to: ${focus.join(", ")}.` : "";
   const identityLine = identity && marks?.length
@@ -167,7 +171,7 @@ If you cannot confidently identify that player in this footage (wrong game, play
   const withImages = (marks ?? []).filter(m => m.referenceImage);
   // Spread the four reference photos across the clip instead of using only the first boxes.
   const references = withImages.length <= 4 ? withImages : [0, 1, 2, 3].map(i => withImages[Math.round(i * (withImages.length - 1) / 3)]);
-  const prompt = PROMPT + identityLine + shiftLine + markLine + detailLine + focusLine + verificationLine;
+  const prompt = PROMPT + identityLine + highlightLine + shiftLine + markLine + detailLine + focusLine + verificationLine;
   const referencePrompt = references.map((m, i) => ` <@target_${i}> is a crop of the user-boxed target at video second ${m.time.toFixed(3)}. Use visible equipment and jersey details as a reference, not proof of continuous tracking.`).join("\n");
   const result = await tl("/analyze", {
     method: "POST",
