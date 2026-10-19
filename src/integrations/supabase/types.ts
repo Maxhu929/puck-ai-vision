@@ -186,6 +186,8 @@ export type Database = {
           player_identified: boolean | null
           player_name: string
           position: string | null
+          review_approved: boolean
+          review_segments: Json
           shifts: Json
           shifts_confirmed: boolean
           status: string
@@ -220,6 +222,8 @@ export type Database = {
           player_identified?: boolean | null
           player_name?: string
           position?: string | null
+          review_approved?: boolean
+          review_segments?: Json
           shifts?: Json
           shifts_confirmed?: boolean
           status?: string
@@ -254,6 +258,8 @@ export type Database = {
           player_identified?: boolean | null
           player_name?: string
           position?: string | null
+          review_approved?: boolean
+          review_segments?: Json
           shifts?: Json
           shifts_confirmed?: boolean
           status?: string
