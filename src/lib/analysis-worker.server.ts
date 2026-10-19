@@ -2,6 +2,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { identityDetailsSchema } from "./player-identification";
 import { getTask, analyzeVideo } from "@/lib/twelvelabs.server";
+import { approvedWindows, reviewSegmentsSchema } from "./video-review";
 
 /**
  * Advance one analysis: indexing -> analyzing -> ready/failed. Shared by the
@@ -12,6 +13,15 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
   const { data: row, error } = await supabaseAdmin.from("video_analyses").select("*").eq("id", id).maybeSingle();
   if (error || !row) return { row: null, error: "Analysis not found" };
   if (row.status === "ready" || row.status === "failed") return { row, error: null };
+  if (row.review_approved !== true || row.status === "awaiting_review") {
+    if (row.status !== "awaiting_review") await supabaseAdmin.from("video_analyses").update({ status: "awaiting_review" }).eq("id", id);
+    return { row: { ...row, status: "awaiting_review" }, error: null };
+  }
+  const windows = approvedWindows(reviewSegmentsSchema.parse(row.review_segments), row.shifts ?? [], row.marks ?? []);
+  if (!windows.length || row.highlighted !== true) {
+    await supabaseAdmin.from("video_analyses").update({ status: "awaiting_review", review_approved: false }).eq("id", id);
+    return { row: { ...row, status: "awaiting_review" }, error: null };
+  }
 
   try {
     let videoId = row.tl_video_id as string | null;
@@ -64,6 +74,7 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
       Array.isArray(row.marks) ? (row.marks as Array<{ time: number; x: number; y: number; w: number; h: number }>) : undefined,
       identityDetailsSchema.parse(row.identity_details ?? {}),
       row.highlighted === true,
+      windows,
     );
     const { data: done, error: updateError } = await supabaseAdmin
       .from("video_analyses")

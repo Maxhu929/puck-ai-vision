@@ -29,7 +29,6 @@ export const Route = createFileRoute("/api/analyze")({
           }
 
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const { ensureIndex, createIndexingTaskFromUrl } = await import("@/lib/twelvelabs.server");
 
           // Hand Twelve Labs a temporary download URL so we never stream the
           // whole video through this server (that is what stalled at 58%).
@@ -42,10 +41,6 @@ export const Route = createFileRoute("/api/analyze")({
               { status: 400 },
             );
           }
-          const base = process.env["SUPABASE_URL"]!.replace(/\/$/, "");
-          const videoUrl = signed.signedUrl.startsWith("http")
-            ? signed.signedUrl
-            : `${base}/storage/v1${signed.signedUrl}`;
 
           const fileName = String(body.fileName ?? "video.mp4").slice(0, 200);
           const playerName = String(body.playerName ?? "").slice(0, 80) || "Unknown Player";
@@ -63,8 +58,6 @@ export const Route = createFileRoute("/api/analyze")({
           const rawEmail = String(body.notifyEmail ?? "").trim().slice(0, 200);
           const notifyEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail) ? rawEmail : null;
 
-          const indexId = await ensureIndex();
-          const taskId = await createIndexingTaskFromUrl(indexId, videoUrl);
 
 
           const { data, error } = await supabaseAdmin
@@ -79,9 +72,8 @@ export const Route = createFileRoute("/api/analyze")({
               handedness: handedness,
               focus_areas: focusAreas,
               file_name: fileName,
-              tl_index_id: indexId,
-              tl_task_id: taskId,
-              status: "indexing",
+              status: "awaiting_review",
+              review_approved: false,
               notify_email: notifyEmail,
               storage_path: path,
             })
@@ -89,8 +81,7 @@ export const Route = createFileRoute("/api/analyze")({
             .single();
 
           if (error) throw error;
-          await supabaseAdmin.rpc("ensure_analysis_worker");
-          return Response.json({ id: data.id, taskId });
+          return Response.json({ id: data.id, status: "awaiting_review" });
         } catch (err) {
           const message = err instanceof Error ? err.message : "Upload failed";
           console.error("analyze upload failed:", message, (err as any)?.cause, (err as any)?.stack);

@@ -1,5 +1,6 @@
 import { evidenceSchema, hasVerifiedIdentity, isVerifiedTime, identityFields, type IdentityDetails, type IdentificationEvidence } from "./player-identification";
 const BASE = "https://api.twelvelabs.io/v1.3";
+import { coachingNoteSchema, type VideoRange } from "./video-review";
 const INDEX_NAME = "hockey-video-analyzer";
 
 function apiKey() {
@@ -92,7 +93,7 @@ export type HockeyAnalysis = {
   overallGrade: string;
   summary: string;
   playerIdentified: boolean;
-  notes: Array<{ time: string; tag: string; type: "positive" | "improvement"; text: string }>;
+  notes: Array<import("zod").infer<typeof coachingNoteSchema>>;
   categories: Array<{ name: string; score: number; note: string }>;
   metrics: ClipMetrics | null;
   identificationEvidence: IdentificationEvidence | null;
@@ -105,7 +106,7 @@ Return ONLY valid JSON (no markdown fences) matching exactly:
   "identificationEvidence": {"confidence":"high|medium|low","observedClues":["visual evidence actually visible, with video timestamps"],"uncertainty":"ambiguities or tracking gaps","verifiedIntervals":[{"start":video_seconds,"end":video_seconds}]},
   "overallGrade": "letter grade such as A-, B+ (use \\"N/A\\" if the target player was not identified)",
   "summary": "2-3 sentence coaching summary of the player's performance",
-  "notes": [{"time":"MM:SS","tag":"short play label","type":"positive|improvement","text":"one sentence of specific coaching feedback"}],
+  "notes": [{"time":"MM:SS","tag":"short play label","type":"positive|improvement","text":"specific coaching feedback","evidence":"observable target action at this timestamp","interpretation":"what that action suggests, not an unseen intent","suggestion":"concrete coaching action","confidence":"high","visibility":"visible"}],
   "categories": [{"name":"Skating","score":0-100,"note":"one short sentence"}],
   "metrics": {
     "topSpeedKph": number,
@@ -132,6 +133,7 @@ export async function analyzeVideo(
   marks?: Array<{ time: number; x: number; y: number; w: number; h: number; referenceImage?: string }>,
   details?: IdentityDetails,
   highlighted?: boolean,
+  reviewed?: VideoRange[],
 ): Promise<HockeyAnalysis> {
   const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
   const shiftLine = shifts !== undefined && shifts.length === 0
@@ -171,7 +173,8 @@ If you cannot confidently identify that player in this footage (wrong game, play
   const withImages = (marks ?? []).filter(m => m.referenceImage);
   // Spread the four reference photos across the clip instead of using only the first boxes.
   const references = withImages.length <= 4 ? withImages : [0, 1, 2, 3].map(i => withImages[Math.round(i * (withImages.length - 1) / 3)]);
-  const prompt = PROMPT + identityLine + highlightLine + shiftLine + markLine + detailLine + focusLine + verificationLine;
+  const reviewLine = reviewed ? `\nUSER-REVIEWED FOOTAGE ONLY: eligible original-video seconds ${JSON.stringify(reviewed)}. All other imagery has been removed. Never grade, infer identity, reconnect tracks, or timestamp outside these windows. A marker is only a manual annotation, not proof of automated tracking. End tracking at every gap. Keep surrounding players and puck as context but grade only the target. Each note requires observable evidence, separate interpretation and coaching suggestion, high confidence and visible status. Return fewer notes if fewer are supported; never manufacture observations to satisfy a count.` : "";
+  const prompt = PROMPT + identityLine + highlightLine + shiftLine + markLine + detailLine + focusLine + verificationLine + reviewLine;
   const referencePrompt = references.map((m, i) => ` <@target_${i}> is a crop of the user-boxed target at video second ${m.time.toFixed(3)}. Use visible equipment and jersey details as a reference, not proof of continuous tracking.`).join("\n");
   const result = await tl("/analyze", {
     method: "POST",
@@ -193,14 +196,20 @@ If you cannot confidently identify that player in this footage (wrong game, play
 
   const parsed = JSON.parse(json.slice(start, end + 1)) as Partial<HockeyAnalysis>;
   const evidenceResult = evidenceSchema.safeParse(parsed.identificationEvidence);
-  const identificationEvidence = evidenceResult.success ? evidenceResult.data : null;
+  const identificationEvidence = evidenceResult.success ? {
+    ...evidenceResult.data,
+    verifiedIntervals: reviewed ? evidenceResult.data.verifiedIntervals.flatMap(v => reviewed.map(w => ({ start: Math.max(v.start, w.start), end: Math.min(v.end, w.end) })).filter(w => w.end > w.start)) : evidenceResult.data.verifiedIntervals,
+  } : null;
   const identified = hasVerifiedIdentity(parsed.playerIdentified, identificationEvidence, shifts);
   return {
     identificationEvidence,
     overallGrade: identified ? (parsed.overallGrade ?? "N/A") : "N/A",
     summary: identified ? (parsed.summary ?? "") : (identificationEvidence?.uncertainty || "The target player could not be verified with strong visual evidence. Add clear player boxes and identifying details before re-grading."),
     playerIdentified: identified,
-    notes: identified && identificationEvidence && Array.isArray(parsed.notes) ? parsed.notes.filter(n => typeof n.time === "string" && isVerifiedTime(n.time, identificationEvidence, shifts)) : [],
+    notes: identified && identificationEvidence && Array.isArray(parsed.notes) ? parsed.notes.flatMap(n => {
+      const checked = coachingNoteSchema.safeParse(n);
+      return checked.success && isVerifiedTime(checked.data.time, identificationEvidence, shifts) ? [checked.data] : [];
+    }) : [],
     categories: identified && Array.isArray(parsed.categories) ? parsed.categories : [],
     metrics: identified && parsed.metrics
       ? {
