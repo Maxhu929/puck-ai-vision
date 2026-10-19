@@ -170,6 +170,8 @@ export type Database = {
           file_name: string | null
           focus_areas: string[]
           handedness: string | null
+          highlighted: boolean
+          highlighted_path: string | null
           id: string
           identification_evidence: Json
           identity_details: Json
@@ -202,6 +204,8 @@ export type Database = {
           file_name?: string | null
           focus_areas?: string[]
           handedness?: string | null
+          highlighted?: boolean
+          highlighted_path?: string | null
           id?: string
           identification_evidence?: Json
           identity_details?: Json
@@ -234,6 +238,8 @@ export type Database = {
           file_name?: string | null
           focus_areas?: string[]
           handedness?: string | null
+          highlighted?: boolean
+          highlighted_path?: string | null
           id?: string
           identification_evidence?: Json
           identity_details?: Json
