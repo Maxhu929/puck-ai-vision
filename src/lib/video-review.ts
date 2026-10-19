@@ -50,6 +50,10 @@ export function containsTime(windows: VideoRange[], time: number): boolean {
   return windows.some(w => time >= w.start && time < w.end);
 }
 
+export function canProcessReview(approved: boolean, highlighted: boolean, windows: VideoRange[]): boolean {
+  return approved && highlighted && windows.some(w => w.end > w.start);
+}
+
 export const coachingNoteSchema = z.object({
   time: z.string(), tag: z.string().min(1).max(160), type: z.enum(["positive", "improvement"]),
   text: z.string().min(1).max(1500), evidence: z.string().trim().min(1).max(1500),

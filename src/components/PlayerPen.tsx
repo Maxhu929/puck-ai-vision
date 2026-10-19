@@ -5,16 +5,18 @@ import { Button } from "@/components/ui/button";
 import { type PlayerMark } from "@/lib/analysis.functions";
 import { boxCheckpoints, nextCrossedCheckpoint, BOX_INTERVAL_SECONDS } from "@/lib/player-identification";
 import { PlayerTrackingArrow } from "@/components/PlayerTrackingArrow";
+import { containsTime, type ReviewSegment } from "@/lib/video-review";
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
 
 /** Normalized boxes are stored in video-frame coordinates, not the letterboxed player. */
-export function PlayerPen({ analysisId, initial, videoRef, children, shifts, markRequest, onMarksChange, onSave }: {
+export function PlayerPen({ analysisId, initial, videoRef, children, shifts, segments, markRequest, onMarksChange, onSave }: {
   analysisId: string;
   initial: PlayerMark[];
   videoRef: RefObject<HTMLVideoElement | null>;
   children: ReactNode;
   shifts: Array<{ start: number; end: number }>;
+  segments: ReviewSegment[];
   markRequest: { time: number; sequence: number } | null;
   onMarksChange: (marks: PlayerMark[]) => void;
   onSave: (marks?: PlayerMark[]) => Promise<void>;
@@ -32,6 +34,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
   const origin = useRef<[number, number] | null>(null);
   const draftRef = useRef<PlayerMark | null>(null);
   const anchorTime = useRef(0);
+  const checkpointsFor = (boxes: PlayerMark[]) => boxCheckpoints(shifts, boxes).filter(c => !containsTime(segments.filter(s => s.status !== "verified"), c.time));
   useEffect(() => onMarksChange(marks), [marks, onMarksChange]);
 
   useEffect(() => setMarks(initial), [initial]);
@@ -65,7 +68,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
   useEffect(() => {
     const v = videoRef.current;
     if (!v || boxOn) return;
-    const checkpoints = boxCheckpoints(shifts, marks);
+    const checkpoints = checkpointsFor(marks);
     if (!checkpoints.some((c) => !c.covered)) return;
     let from = v.currentTime;
     const onSeeked = () => { from = v.currentTime; };
@@ -85,7 +88,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
       v.removeEventListener("timeupdate", onTime);
       v.removeEventListener("seeked", onSeeked);
     };
-  }, [videoRef, shifts, marks, boxOn]);
+  }, [videoRef, shifts, marks, boxOn, segments]);
 
   const beginBox = (t: number) => {
     const v = videoRef.current;
@@ -142,7 +145,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
       setTrackingRequest(previous => ({ box: m, sequence: (previous?.sequence ?? 0) + 1 }));
       setPlacingArrow(false);
     }
-    const upcoming = guided ? boxCheckpoints(shifts, next).find((c) => !c.covered) : undefined;
+    const upcoming = guided ? checkpointsFor(next).find((c) => !c.covered) : undefined;
     if (upcoming) {
       toast.success(`Boxed at ${fmt(m.time)} — now box yourself at ${fmt(upcoming.time)}`);
       beginBox(upcoming.time);
@@ -194,7 +197,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
         <Button onClick={save} variant="outline" size="sm" disabled={saving || boxOn}>{saving && <Loader2 className="size-4 animate-spin" />}{saving ? "Saving…" : "Save identification"}</Button>
       </div>
       {shifts.length > 0 && (() => {
-        const checkpoints = boxCheckpoints(shifts, marks);
+        const checkpoints = checkpointsFor(marks);
         const missing = checkpoints.filter((c) => !c.covered);
         return <div className="space-y-2 rounded-md border border-border p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">

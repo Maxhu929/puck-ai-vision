@@ -155,7 +155,7 @@ function FeedbackPage() {
           ) : null}
           {videoUrl ? (
             record ? (
-              <PlayerPen key={record.id} analysisId={record.id} initial={record.marks} videoRef={videoRef} shifts={draftShifts ?? record.shifts} markRequest={markRequest} onMarksChange={setDraftMarks} onSave={saveAll}>
+              <PlayerPen key={record.id} analysisId={record.id} initial={record.marks} videoRef={videoRef} shifts={draftShifts ?? record.shifts} segments={segments} markRequest={markRequest} onMarksChange={setDraftMarks} onSave={saveAll}>
                 <video
                   ref={videoRef}
                   crossOrigin="anonymous"
@@ -284,7 +284,7 @@ function FeedbackPage() {
             <p className="text-sm text-muted-foreground">Overall grade</p>
             <p className="mt-2 font-display text-6xl font-bold text-gradient-ice">{grade}</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              {record?.summary ?? "86 / 100 · top 12% of your league"}
+              {record ? record.summary || "No approved coaching report yet." : "86 / 100 · top 12% of your league"}
             </p>
           </div>
 

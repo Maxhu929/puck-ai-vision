@@ -2,7 +2,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { identityDetailsSchema, shiftsSchema, marksSchema } from "./player-identification";
 import { getTask, analyzeVideo } from "@/lib/twelvelabs.server";
-import { approvedWindows, reviewSegmentsSchema } from "./video-review";
+import { approvedWindows, reviewSegmentsSchema, canProcessReview } from "./video-review";
 
 /**
  * Advance one analysis: indexing -> analyzing -> ready/failed. Shared by the
@@ -18,7 +18,7 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
     return { row: { ...row, status: "awaiting_review" }, error: null };
   }
   const windows = approvedWindows(reviewSegmentsSchema.parse(row.review_segments), shiftsSchema.parse(row.shifts ?? []), marksSchema.parse(row.marks ?? []));
-  if (!windows.length || row.highlighted !== true) {
+  if (!canProcessReview(row.review_approved === true, row.highlighted === true, windows)) {
     await supabaseAdmin.from("video_analyses").update({ status: "awaiting_review", review_approved: false }).eq("id", id);
     return { row: { ...row, status: "awaiting_review" }, error: null };
   }
