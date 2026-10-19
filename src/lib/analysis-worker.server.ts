@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { identityDetailsSchema } from "./player-identification";
+import { identityDetailsSchema, shiftsSchema, marksSchema } from "./player-identification";
 import { getTask, analyzeVideo } from "@/lib/twelvelabs.server";
 import { approvedWindows, reviewSegmentsSchema } from "./video-review";
 
@@ -17,7 +17,7 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
     if (row.status !== "awaiting_review") await supabaseAdmin.from("video_analyses").update({ status: "awaiting_review" }).eq("id", id);
     return { row: { ...row, status: "awaiting_review" }, error: null };
   }
-  const windows = approvedWindows(reviewSegmentsSchema.parse(row.review_segments), row.shifts ?? [], row.marks ?? []);
+  const windows = approvedWindows(reviewSegmentsSchema.parse(row.review_segments), shiftsSchema.parse(row.shifts ?? []), marksSchema.parse(row.marks ?? []));
   if (!windows.length || row.highlighted !== true) {
     await supabaseAdmin.from("video_analyses").update({ status: "awaiting_review", review_approved: false }).eq("id", id);
     return { row: { ...row, status: "awaiting_review" }, error: null };
