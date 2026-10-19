@@ -1,6 +1,6 @@
 import { describe, test } from "node:test";
 import { strict as assert } from "node:assert";
-import { boxCheckpoints, hasVerifiedIdentity, isVerifiedTime, marksSchema, shiftsSchema, type IdentificationEvidence } from "./player-identification";
+import { boxCheckpoints, hasVerifiedIdentity, isVerifiedTime, marksSchema, nextCrossedCheckpoint, shiftsSchema, type IdentificationEvidence } from "./player-identification";
 const evidence: IdentificationEvidence = { confidence: "high", observedClues: ["Red #17 inside the marked box at 01:00"], uncertainty: "", verifiedIntervals: [{ start: 60, end: 90 }] };
 describe("Target player safeguards", () => {
   test("missing identity confirmation never passes", () => assert.equal(hasVerifiedIdentity(undefined, evidence), false));
@@ -18,4 +18,13 @@ describe("Target player safeguards", () => {
   test("a box within 3 seconds covers a checkpoint", () => assert.deepEqual(boxCheckpoints([{ start: 0, end: 25 }], [{ time: 0 }, { time: 12.5 }]).map(c => c.covered), [true, true, false]));
   test("a box 4 seconds away does not cover a checkpoint", () => assert.equal(boxCheckpoints([{ start: 0, end: 25 }], [{ time: 14 }])[1].covered, false));
   test("a very short shift still needs a start box", () => assert.deepEqual(boxCheckpoints([{ start: 5, end: 6 }], []).map(c => c.time), [5]));
+});
+
+describe("Playback pausing at unboxed checkpoints", () => {
+  const cps = boxCheckpoints([{ start: 0, end: 25 }], [{ time: 0 }]);
+  test("pauses when playhead crosses an unboxed checkpoint", () => assert.equal(nextCrossedCheckpoint(cps, 9.8, 10.2)?.time, 10));
+  test("an already boxed checkpoint never pauses", () => assert.equal(nextCrossedCheckpoint(cps, -0.5, 0.5), undefined));
+  test("scrubbing backwards never pauses", () => assert.equal(nextCrossedCheckpoint(cps, 20, 10), undefined));
+  test("the earliest missed checkpoint wins when two are crossed at once", () => assert.equal(nextCrossedCheckpoint(cps, 9, 21)?.time, 10));
+  test("nothing pauses after the last checkpoint", () => assert.equal(nextCrossedCheckpoint(cps, 20.5, 24.9), undefined));
 });
