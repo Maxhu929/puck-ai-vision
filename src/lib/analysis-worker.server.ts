@@ -45,6 +45,7 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
         .update({ tl_video_id: videoId, status: "analyzing" })
         .eq("id", row.id)
         .is("tl_video_id", null)
+        .eq("review_approved", true)
         .select("id");
       if (!claimed?.length) return { row: { ...row, status: "analyzing" }, error: null };
     } else if (row.status === "analyzing") {
@@ -89,6 +90,7 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
         metrics: (analysis.metrics ?? {}) as any,
       })
       .eq("id", row.id)
+      .eq("review_approved", true)
       .select("*")
       .single();
     if (updateError) throw updateError;
@@ -101,6 +103,7 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
       .from("video_analyses")
       .update({ status: "failed", error_message: message.slice(0, 500) })
       .eq("id", row.id)
+      .eq("review_approved", true)
       .select("*")
       .single();
     if (failed) await notifyComplete(failed);
