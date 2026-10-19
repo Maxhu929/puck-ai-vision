@@ -63,3 +63,12 @@ export function boxCheckpoints(shifts: Array<{ start: number; end: number }>, ma
     return times.map((time) => ({ shiftIndex, time, covered: marks.some((m) => Math.abs(m.time - time) <= BOX_TOLERANCE_SECONDS) }));
   });
 }
+
+/** The first unboxed checkpoint the playhead crosses while the video moves from `from` to `to` seconds.
+ *  Backward scrubbing never counts as a crossing, so a jump back in time doesn't fire a pause. */
+export function nextCrossedCheckpoint(checkpoints: Array<{ time: number; covered: boolean }>, from: number, to: number) {
+  if (to <= from) return undefined;
+  return checkpoints
+    .filter((c) => !c.covered && c.time > from && c.time <= to)
+    .sort((a, b) => a.time - b.time)[0];
+}

@@ -3,7 +3,7 @@ import { Scan, Undo2, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { type PlayerMark } from "@/lib/analysis.functions";
-import { boxCheckpoints, BOX_INTERVAL_SECONDS } from "@/lib/player-identification";
+import { boxCheckpoints, nextCrossedCheckpoint, BOX_INTERVAL_SECONDS } from "@/lib/player-identification";
 import { PlayerTrackingArrow } from "@/components/PlayerTrackingArrow";
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
@@ -60,6 +60,32 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
       v.removeEventListener("seeked", onTime);
     };
   }, [videoRef]);
+
+  /** Playback stops itself at every checkpoint that still needs a box, so a moment is never scrolled past. */
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || boxOn) return;
+    const checkpoints = boxCheckpoints(shifts, marks);
+    if (!checkpoints.some((c) => !c.covered)) return;
+    let from = v.currentTime;
+    const onSeeked = () => { from = v.currentTime; };
+    const onTime = () => {
+      const to = v.currentTime;
+      const hit = nextCrossedCheckpoint(checkpoints, from, to);
+      from = to;
+      if (!hit || v.paused || v.seeking) return;
+      v.pause();
+      setGuided(true);
+      beginBox(hit.time);
+      toast.info(`Paused at ${fmt(hit.time)} — box yourself here`);
+    };
+    v.addEventListener("timeupdate", onTime);
+    v.addEventListener("seeked", onSeeked);
+    return () => {
+      v.removeEventListener("timeupdate", onTime);
+      v.removeEventListener("seeked", onSeeked);
+    };
+  }, [videoRef, shifts, marks, boxOn]);
 
   const beginBox = (t: number) => {
     const v = videoRef.current;
