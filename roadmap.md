@@ -4,4 +4,10 @@
 - [x] Test identification rules and real feedback saving/readback.
 - [ ] Verify reference-crop drawing and model identification on real footage: newest clip cannot play in the test browser (media error 4); needs playable footage with a user-confirmed player box.
 - [x] Add an automatic following arrow to video playback, with explicit tracking-loss states.
-- [x] Test following-arrow movement, seeking, and stopping when tracking is lost using controlled textured footage; real hockey validation remains blocked by the uploaded clip's unsupported playback format.- [x] Let users preview and approve a highlighted copy of the clip before the AI grades it.
+- [x] Test following-arrow movement, seeking, and stopping when tracking is lost using controlled textured footage; real hockey validation remains blocked by the uploaded clip's unsupported playback format.
+- [x] Let users preview and approve a highlighted copy of the clip before the AI grades it.
+- [ ] Hold new uploads for manual review before sending footage to AI.
+- [ ] Save verified, uncertain and off-screen ranges; exclude unverified footage from approved copies and coaching.
+- [ ] Invalidate approval on corrections and require evidence-backed coaching notes.
+- [ ] Test review safeguards and the review dashboard.
+- [ ] Trial SAM 2 on real footage — blocked by a separate GPU tracking service not yet connected.
