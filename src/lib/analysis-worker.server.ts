@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { identityDetailsSchema } from "./player-identification";
+import { identityDetailsSchema, shiftsSchema, marksSchema } from "./player-identification";
 import { getTask, analyzeVideo } from "@/lib/twelvelabs.server";
+import { approvedWindows, reviewSegmentsSchema, canProcessReview } from "./video-review";
 
 /**
  * Advance one analysis: indexing -> analyzing -> ready/failed. Shared by the
@@ -12,6 +13,15 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
   const { data: row, error } = await supabaseAdmin.from("video_analyses").select("*").eq("id", id).maybeSingle();
   if (error || !row) return { row: null, error: "Analysis not found" };
   if (row.status === "ready" || row.status === "failed") return { row, error: null };
+  if (row.review_approved !== true || row.status === "awaiting_review") {
+    if (row.status !== "awaiting_review") await supabaseAdmin.from("video_analyses").update({ status: "awaiting_review" }).eq("id", id);
+    return { row: { ...row, status: "awaiting_review" }, error: null };
+  }
+  const windows = approvedWindows(reviewSegmentsSchema.parse(row.review_segments), shiftsSchema.parse(row.shifts ?? []), marksSchema.parse(row.marks ?? []));
+  if (!canProcessReview(row.review_approved === true, row.highlighted === true, windows)) {
+    await supabaseAdmin.from("video_analyses").update({ status: "awaiting_review", review_approved: false }).eq("id", id);
+    return { row: { ...row, status: "awaiting_review" }, error: null };
+  }
 
   try {
     let videoId = row.tl_video_id as string | null;
@@ -35,6 +45,7 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
         .update({ tl_video_id: videoId, status: "analyzing" })
         .eq("id", row.id)
         .is("tl_video_id", null)
+        .eq("review_approved", true)
         .select("id");
       if (!claimed?.length) return { row: { ...row, status: "analyzing" }, error: null };
     } else if (row.status === "analyzing") {
@@ -64,6 +75,7 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
       Array.isArray(row.marks) ? (row.marks as Array<{ time: number; x: number; y: number; w: number; h: number }>) : undefined,
       identityDetailsSchema.parse(row.identity_details ?? {}),
       row.highlighted === true,
+      windows,
     );
     const { data: done, error: updateError } = await supabaseAdmin
       .from("video_analyses")
@@ -78,6 +90,7 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
         metrics: (analysis.metrics ?? {}) as any,
       })
       .eq("id", row.id)
+      .eq("review_approved", true)
       .select("*")
       .single();
     if (updateError) throw updateError;
@@ -90,6 +103,7 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
       .from("video_analyses")
       .update({ status: "failed", error_message: message.slice(0, 500) })
       .eq("id", row.id)
+      .eq("review_approved", true)
       .select("*")
       .single();
     if (failed) await notifyComplete(failed);

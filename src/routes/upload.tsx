@@ -35,7 +35,7 @@ export const Route = createFileRoute("/upload")({
 function UploadPage() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [phase, setPhase] = useState<"idle" | "optimizing" | "uploading" | "indexing" | "ready" | "failed">("idle");
+  const [phase, setPhase] = useState<"idle" | "optimizing" | "uploading" | "indexing" | "review" | "ready" | "failed">("idle");
 
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -142,7 +142,7 @@ function UploadPage() {
           throw new Error(`Upload failed (storage responded ${xhr.status}). Try again.`);
         }
         setProgress(58);
-        setMessage("Sending footage to the AI…");
+        setMessage("Saving footage for your review…");
         const res = await fetch("/api/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -167,12 +167,10 @@ function UploadPage() {
         if (!res.ok) throw new Error(json.error ?? "Analysis could not be started");
         if (!json.id) throw new Error("No clip was returned. Please try again.");
         setAnalysisId(json.id);
-        setPhase("indexing");
-        setProgress(60);
-        setMessage(
-          "Processing is underway. You can close this page — the analysis keeps running and will appear in Recent submissions" +
-            (notifyEmail.trim() ? ", and we'll email you when it's done." : "."),
-        );
+        setPhase("review");
+        setProgress(100);
+        setMessage("Upload saved. No footage has been sent to AI yet.");
+        void recent.refetch();
       } catch (err) {
         setPhase("failed");
         setMessage(err instanceof Error ? err.message : "Upload failed");
@@ -193,7 +191,7 @@ function UploadPage() {
 
 
   return (
-    <PageShell title="Upload" subtitle="Add game footage and the AI will grade every shift.">
+    <PageShell title="Upload" subtitle="Upload footage, review your player, then approve coaching analysis.">
       <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
         <div className="space-y-6">
           <label
@@ -232,13 +230,13 @@ function UploadPage() {
                 <span className="ml-auto text-sm text-muted-foreground">{progress}%</span>
               </div>
               <Progress value={progress} className="mt-4" />
-              {phase === "ready" && analysisId ? (
+              {(phase === "ready" || phase === "review") && analysisId ? (
                 <div className="mt-5 flex items-center gap-3">
                   <Sparkles className="size-4 text-gold" />
                   <p className="text-sm text-muted-foreground">{message}</p>
                   <Button asChild size="sm" className="ml-auto">
                     <Link to="/feedback" search={{ id: analysisId }}>
-                      See AI feedback
+                      {phase === "review" ? "Review player" : "See AI feedback"}
                     </Link>
                   </Button>
                 </div>

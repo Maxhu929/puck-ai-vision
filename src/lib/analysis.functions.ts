@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { identityDetailsSchema, evidenceSchema, shiftsSchema, marksSchema, type IdentityDetails, type IdentificationEvidence } from "./player-identification";
+import { reviewSegmentsSchema, approvedWindows, type ReviewSegment } from "./video-review";
 
 export type ClipMetrics = {
   topSpeedKph: number;
@@ -29,11 +30,13 @@ export type AnalysisRecord = {
   errorMessage: string | null;
   overallGrade: string | null;
   summary: string | null;
-  notes: Array<{ time: string; tag: string; type: string; text: string }>;
+  notes: Array<{ time: string; tag: string; type: string; text: string; evidence?: string; interpretation?: string; suggestion?: string; confidence?: string; visibility?: string }>;
   categories: Array<{ name: string; score: number; note: string }>;
   metrics: ClipMetrics | null;
   shifts: Array<{ start: number; end: number }>;
   marks: PlayerMark[];
+  reviewSegments: ReviewSegment[];
+  reviewApproved: boolean;
   createdAt: string;
 };
 
@@ -66,6 +69,8 @@ function toRecord(row: any): AnalysisRecord {
     metrics,
     shifts: Array.isArray(row.shifts) ? row.shifts : [],
     marks: Array.isArray(row.marks) ? row.marks : [],
+    reviewSegments: reviewSegmentsSchema.safeParse(row.review_segments).data ?? [],
+    reviewApproved: row.review_approved === true,
     createdAt: row.created_at,
   };
 }
@@ -166,7 +171,7 @@ export const getVideoPlaybackUrl = createServerFn({ method: "GET" })
 export const savePlayerIdentification = createServerFn({ method: "POST" })
   .inputValidator(input => z.object({
     id: z.string().uuid(), details: identityDetailsSchema.optional(),
-    shifts: shiftsSchema.optional(), marks: marksSchema.optional(),
+    shifts: shiftsSchema.optional(), marks: marksSchema.optional(), segments: reviewSegmentsSchema.optional(),
   }).parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -177,35 +182,44 @@ export const savePlayerIdentification = createServerFn({ method: "POST" })
       ...(data.details ? { identity_details: data.details } : {}),
       ...(data.shifts !== undefined ? { shifts: data.shifts, shifts_confirmed: true } : {}),
       ...(data.marks !== undefined ? { marks: data.marks } : {}),
-      ...(row.tl_video_id ? { status: "pending", error_message: null, overall_grade: null, player_identified: null, identification_evidence: {}, notes: [], categories: [], metrics: {} } : {}),
+      ...(data.segments !== undefined ? { review_segments: data.segments } : {}),
+      status: "awaiting_review", review_approved: false, highlighted: false,
+      error_message: null, overall_grade: null, summary: null, player_identified: null, identification_evidence: {}, notes: [], categories: [], metrics: {},
     };
     const { error: saveError } = await supabaseAdmin.from("video_analyses").update(changes).eq("id", data.id).eq("status", row.status).select("id").single();
     if (saveError) throw new Error("Could not save identification. Refresh the clip and try again.");
-    await supabaseAdmin.rpc("ensure_analysis_worker");
-    if (!row.tl_video_id) return { record: null as AnalysisRecord | null, error: "Identification saved; it will be used when processing finishes." };
     const { data: saved } = await supabaseAdmin.from("video_analyses").select("*").eq("id", data.id).single();
     return { record: saved ? toRecord(saved) : null, error: null };
   });
 
 /** Switch the AI to a user-approved copy of the clip with the target highlighted, then re-grade. */
 export const sendHighlightedCopy = createServerFn({ method: "POST" })
-  .inputValidator((input) => z.object({ id: z.string().uuid(), path: z.string().startsWith("uploads/").max(300), marks: marksSchema, shifts: shiftsSchema.optional() }).parse(input))
+  .inputValidator((input) => z.object({ id: z.string().uuid(), path: z.string().startsWith("uploads/").max(300), marks: marksSchema, shifts: shiftsSchema, details: identityDetailsSchema, segments: reviewSegmentsSchema, approved: z.literal(true) }).parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { ensureIndex, createIndexingTaskFromUrl } = await import("@/lib/twelvelabs.server");
     const { data: row } = await supabaseAdmin.from("video_analyses").select("status").eq("id", data.id).maybeSingle();
     if (!row) throw new Error("Clip not found");
     if (row.status === "analyzing") throw new Error("This clip is being analyzed. Wait for it to finish first.");
+    if (!approvedWindows(data.segments, data.shifts, data.marks).length) throw new Error("Verify an on-ice section with a player box before sending.");
+    if (data.path.includes("..")) throw new Error("Invalid video path");
+    // Persist exactly the reviewed inputs before approval. The trigger invalidates stale approval.
+    const { error: draftError } = await supabaseAdmin.from("video_analyses").update({
+      marks: data.marks, shifts: data.shifts, shifts_confirmed: true, identity_details: data.details, review_segments: data.segments,
+      status: "awaiting_review", review_approved: false,
+    }).eq("id", data.id).eq("status", row.status).select("id").single();
+    if (draftError) throw new Error("The clip changed. Save and review the copy again.");
+    const { data: snapshot } = await supabaseAdmin.from("video_analyses").select("updated_at").eq("id", data.id).single();
+    if (!snapshot) throw new Error("Clip not found");
     const { data: signed, error } = await supabaseAdmin.storage.from("videos").createSignedUrl(data.path, 60 * 60 * 6);
     if (error || !signed) throw new Error("Couldn't find the highlighted copy. Try again.");
     const indexId = await ensureIndex();
     const taskId = await createIndexingTaskFromUrl(indexId, signed.signedUrl);
     const { error: saveError } = await supabaseAdmin.from("video_analyses").update({
-      highlighted_path: data.path, highlighted: true, marks: data.marks,
-      ...(data.shifts ? { shifts: data.shifts, shifts_confirmed: true } : {}),
+      highlighted_path: data.path, highlighted: true, review_approved: true,
       tl_index_id: indexId, tl_task_id: taskId, tl_video_id: null, status: "indexing", error_message: null,
       overall_grade: null, player_identified: null, identification_evidence: {}, notes: [], categories: [], metrics: {},
-    }).eq("id", data.id);
+    }).eq("id", data.id).eq("updated_at", snapshot.updated_at).select("id").single();
     if (saveError) throw new Error("Couldn't save. Try again.");
     await supabaseAdmin.rpc("ensure_analysis_worker");
     return { ok: true };

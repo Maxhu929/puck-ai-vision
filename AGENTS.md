@@ -17,3 +17,6 @@
 - Re-grades are queued for the existing background worker rather than held open in a browser request, so saving remains fast and feedback polls until processing finishes.
 - Playback arrows use dynamically imported browser-only jsfeat Lucas–Kanade optical flow with forward/backward checks; seeking or inconsistent motion hides the arrow, and experimental visual tracks never grant grading identity or replace saved user anchors.
 - Highlighted copies for grading are rendered on-device from user boxes (interpolated only within shifts and short gaps) and require user approval before replacing the AI's indexed video; playback keeps the original so boxes are never drawn over a burned-in marker.
+- Uploads remain awaiting_review until a manually reviewed copy is approved; save actions never enqueue coaching, because identity must be reviewed first.
+- Shared video-review helpers intersect verified ranges with shifts and marker support, subtract all excluded ranges, and preserve original timestamps with blank frames outside eligibility; this keeps unverified imagery out of coaching while retaining game context.
+- Changing boxes, shifts, clues or review ranges invalidates approval in a database trigger; evidence-backed visible high-confidence notes are validated server-side to prevent stale approvals and unsupported criticism.
