@@ -53,7 +53,7 @@ export function ShiftLogger({
       onShiftsChange(shifts);
       await onSave(shifts);
     } catch {
-      toast.error("Couldn't re-grade right now. Try again in a minute.");
+      toast.error("Couldn't save right now. Try again in a minute.");
     } finally {
       setSaving(false);
     }
@@ -98,7 +98,7 @@ export function ShiftLogger({
       )}
       <Button onClick={save} disabled={saving || openStart !== null} className="w-full">
         {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-        {saving ? "Re-grading… (about a minute)" : "Save identification & re-grade"}
+        {saving ? "Saving…" : "Save shifts"}
       </Button>
     </div>
   );

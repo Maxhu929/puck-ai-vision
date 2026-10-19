@@ -147,7 +147,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
       toast.success(`Boxed at ${fmt(m.time)} — now box yourself at ${fmt(upcoming.time)}`);
       beginBox(upcoming.time);
     } else {
-      if (guided) toast.success("Every checkpoint is boxed. Tap Save identification & re-grade.");
+      if (guided) toast.success("Every checkpoint is boxed. Save identification, then review visibility.");
       else toast.success(`Player marked at ${fmt(m.time)}`);
       setGuided(false);
     }
@@ -157,7 +157,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
     setSaving(true);
     try {
       await onSave(marks);
-    } catch { toast.error("Couldn't re-grade right now. Try again in a minute."); }
+    } catch { toast.error("Couldn't save right now. Try again in a minute."); }
     finally { setSaving(false); }
   };
   const visible = marks.filter((m) => Math.abs(m.time - time) < 1.5);
@@ -191,7 +191,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
           {boxOn ? <X className="size-4" /> : <Scan className="size-4" />}{boxOn ? "Cancel box" : "Box player"}
         </Button>
         <Button onClick={() => setMarks((m) => m.slice(0, -1))} variant="ghost" size="icon" title="Undo last box" aria-label="Undo last box" disabled={!marks.length || saving}><Undo2 className="size-4" /></Button>
-        <Button onClick={save} variant="outline" size="sm" disabled={saving || boxOn}>{saving && <Loader2 className="size-4 animate-spin" />}{saving ? "Re-grading…" : "Save identification & re-grade"}</Button>
+        <Button onClick={save} variant="outline" size="sm" disabled={saving || boxOn}>{saving && <Loader2 className="size-4 animate-spin" />}{saving ? "Saving…" : "Save identification"}</Button>
       </div>
       {shifts.length > 0 && (() => {
         const checkpoints = boxCheckpoints(shifts, marks);

@@ -15,6 +15,8 @@ import { PlayerIdentityFields } from "@/components/PlayerIdentityFields";
 import { identityDetailsSchema } from "@/lib/player-identification";
 import { PlayerPen } from "@/components/PlayerPen";
 import { HighlightEditor } from "@/components/HighlightEditor";
+import { VideoReview } from "@/components/VideoReview";
+import type { ReviewSegment } from "@/lib/video-review";
 
 const title = "AI Feedback & Shift Grades | Hockey Video Analyzer";
 const description =
@@ -49,6 +51,7 @@ function FeedbackPage() {
   const record = data?.record ?? null;
   const [details, setDetails] = useState(() => identityDetailsSchema.parse({}));
   const [draftMarks, setDraftMarks] = useState<PlayerMark[] | null>(null);
+  const [segments, setSegments] = useState<ReviewSegment[]>([]);
   const [savingIdentity, setSavingIdentity] = useState(false);
   const saveIdentification = useServerFn(savePlayerIdentification);
   const qc = useQueryClient();
@@ -60,15 +63,16 @@ function FeedbackPage() {
     setDetails(record.identityDetails);
     setDraftMarks(null);
     setDraftShifts(null);
+    setSegments(record.reviewSegments);
   }, [id, record]);
   const saveAll = async (marks?: PlayerMark[], shifts?: Array<{ start: number; end: number }>) => {
     if (!record || savingIdentity) return;
     setSavingIdentity(true);
     try {
       const shiftWindows = shifts ?? draftShifts;
-      const result = await saveIdentification({ data: { id: record.id, details, marks: marks ?? draftMarks ?? record.marks, ...(shiftWindows !== null ? { shifts: shiftWindows } : {}) } });
+      const result = await saveIdentification({ data: { id: record.id, details, segments, marks: marks ?? draftMarks ?? record.marks, ...(shiftWindows !== null ? { shifts: shiftWindows } : {}) } });
       if (result.error) toast.error(result.error);
-      else toast.success("Identification saved. Re-grading continues in the background.");
+      else toast.success("Edits saved. Review and approve a copy before coaching analysis.");
       await qc.invalidateQueries({ queryKey: ["analysis", record.id] });
     } catch (error) { toast.error(error instanceof Error ? error.message : "Could not save identification"); }
     finally { setSavingIdentity(false); }
@@ -111,6 +115,11 @@ function FeedbackPage() {
   return (
     <PageShell title="AI Feedback" subtitle={identityLine}>
       {!record ? <ClipPicker /> : null}
+      {record && <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-border pb-4 text-sm">
+        <span className="font-medium">{record.status === "awaiting_review" ? "Awaiting your review" : ["pending", "indexing", "analyzing"].includes(record.status) ? "Processing approved footage…" : record.status === "failed" ? "Processing failed" : "Report complete"}</span>
+        <span className="text-muted-foreground">{record.reviewApproved ? "Approved copy" : "Approval required for new analysis"}</span>
+        {record.errorMessage && <span className="text-destructive">{record.errorMessage}</span>}
+      </div>}
       <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
         <div className="space-y-6">
           {record && videoUrl ? (
@@ -189,13 +198,16 @@ function FeedbackPage() {
           ) : null}
 
           {record && videoUrl ? (
-            <HighlightEditor key={`hl-${record.id}`} analysisId={record.id} videoUrl={videoUrl} marks={draftMarks ?? record.marks} shifts={draftShifts ?? record.shifts} onSent={() => void qc.invalidateQueries({ queryKey: ["analysis", record.id] })} />
+            <VideoReview segments={segments} onChange={setSegments} shifts={draftShifts ?? record.shifts} videoRef={videoRef} onSave={() => void saveAll()} saving={savingIdentity} />
+          ) : null}
+          {record && videoUrl ? (
+            <HighlightEditor key={`hl-${record.id}`} analysisId={record.id} videoUrl={videoUrl} marks={draftMarks ?? record.marks} shifts={draftShifts ?? record.shifts} segments={segments} details={details} onSent={() => void qc.invalidateQueries({ queryKey: ["analysis", record.id] })} />
           ) : null}
 
           {record && <section className="space-y-4 border-t border-border pt-5">
             <h2 className="text-xl font-semibold">Player identification clues</h2>
             <PlayerIdentityFields value={details} onChange={setDetails} />
-            <Button onClick={() => saveAll()} disabled={savingIdentity}>{savingIdentity ? "Checking identity…" : "Save identification & re-grade"}</Button>
+            <Button onClick={() => saveAll()} disabled={savingIdentity}>{savingIdentity ? "Saving…" : "Save identification"}</Button>
           </section>}
           {record?.identificationEvidence && <section className="space-y-3 border-t border-border pt-5">
             <h2 className="text-xl font-semibold">Identity check · {record.identificationEvidence.confidence} confidence</h2>
@@ -229,6 +241,12 @@ function FeedbackPage() {
                     {f.tag}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">{f.text}</p>
+                  {"evidence" in f && f.evidence && <dl className="mt-3 space-y-2 text-sm">
+                    <div><dt className="font-medium">Observed evidence</dt><dd className="text-muted-foreground">{f.evidence}</dd></div>
+                    <div><dt className="font-medium">Interpretation</dt><dd className="text-muted-foreground">{f.interpretation}</dd></div>
+                    <div><dt className="font-medium">Coaching suggestion</dt><dd className="text-muted-foreground">{f.suggestion}</dd></div>
+                    <div className="text-muted-foreground">{f.confidence} confidence · {f.visibility}</div>
+                  </dl>}
                 </div>
               </article>
             ))}
