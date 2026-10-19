@@ -74,6 +74,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
       const hit = nextCrossedCheckpoint(checkpoints, from, to);
       from = to;
       if (!hit || v.paused || v.seeking) return;
+      console.log("[box-pause]", JSON.stringify({ from, to, hit: hit.time }));
       v.pause();
       setGuided(true);
       beginBox(hit.time);
@@ -92,6 +93,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, mar
     if (!v) return;
     v.pause();
     v.currentTime = t;
+    console.log("[beginBox]", t, "=>", v.currentTime);
     anchorTime.current = t;
     setTime(t);
     setDraft(null);
