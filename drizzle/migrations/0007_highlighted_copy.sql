@@ -1,0 +1,1 @@
+ALTER TABLE public.video_analyses ADD COLUMN IF NOT EXISTS highlighted_path text, ADD COLUMN IF NOT EXISTS highlighted boolean NOT NULL DEFAULT false;

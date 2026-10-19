@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { PlayerIdentityFields } from "@/components/PlayerIdentityFields";
 import { identityDetailsSchema } from "@/lib/player-identification";
 import { PlayerPen } from "@/components/PlayerPen";
+import { HighlightEditor } from "@/components/HighlightEditor";
 
 const title = "AI Feedback & Shift Grades | Hockey Video Analyzer";
 const description =
@@ -187,6 +188,9 @@ function FeedbackPage() {
             </div>
           ) : null}
 
+          {record && videoUrl ? (
+            <HighlightEditor key={`hl-${record.id}`} analysisId={record.id} videoUrl={videoUrl} marks={draftMarks ?? record.marks} shifts={draftShifts ?? record.shifts} onSent={() => void qc.invalidateQueries({ queryKey: ["analysis", record.id] })} />
+          ) : null}
 
           {record && <section className="space-y-4 border-t border-border pt-5">
             <h2 className="text-xl font-semibold">Player identification clues</h2>
