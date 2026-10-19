@@ -186,3 +186,27 @@ export const savePlayerIdentification = createServerFn({ method: "POST" })
     const { data: saved } = await supabaseAdmin.from("video_analyses").select("*").eq("id", data.id).single();
     return { record: saved ? toRecord(saved) : null, error: null };
   });
+
+/** Switch the AI to a user-approved copy of the clip with the target highlighted, then re-grade. */
+export const sendHighlightedCopy = createServerFn({ method: "POST" })
+  .inputValidator((input) => z.object({ id: z.string().uuid(), path: z.string().startsWith("uploads/").max(300), marks: marksSchema, shifts: shiftsSchema.optional() }).parse(input))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { ensureIndex, createIndexingTaskFromUrl } = await import("@/lib/twelvelabs.server");
+    const { data: row } = await supabaseAdmin.from("video_analyses").select("status").eq("id", data.id).maybeSingle();
+    if (!row) throw new Error("Clip not found");
+    if (row.status === "analyzing") throw new Error("This clip is being analyzed. Wait for it to finish first.");
+    const { data: signed, error } = await supabaseAdmin.storage.from("videos").createSignedUrl(data.path, 60 * 60 * 6);
+    if (error || !signed) throw new Error("Couldn't find the highlighted copy. Try again.");
+    const indexId = await ensureIndex();
+    const taskId = await createIndexingTaskFromUrl(indexId, signed.signedUrl);
+    const { error: saveError } = await supabaseAdmin.from("video_analyses").update({
+      highlighted_path: data.path, highlighted: true, marks: data.marks,
+      ...(data.shifts ? { shifts: data.shifts, shifts_confirmed: true } : {}),
+      tl_index_id: indexId, tl_task_id: taskId, tl_video_id: null, status: "indexing", error_message: null,
+      overall_grade: null, player_identified: null, identification_evidence: {}, notes: [], categories: [], metrics: {},
+    }).eq("id", data.id);
+    if (saveError) throw new Error("Couldn't save. Try again.");
+    await supabaseAdmin.rpc("ensure_analysis_worker");
+    return { ok: true };
+  });
