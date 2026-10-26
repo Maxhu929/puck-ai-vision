@@ -12,6 +12,7 @@ BoT-SORT is a multi-object tracker, not a player detector. A hockey detector sup
 - Supply consecutive-frame detections, not the two-second samples proposed below; sampled detections alone are not a valid BoT-SORT video-tracking trial.
 - Keep the user’s first-frame selection as the target identity anchor. Review the resulting target track for identity switches and lost periods, rather than treating track ID persistence as proof of identity.
 - Same uniforms and occlusions remain difficult; appearance matching cannot guarantee correct re-identification. Verify the chosen implementation’s appearance model and configuration explicitly.
+- Ultralytics BoT-SORT disables appearance re-identification by default (`with_reid: False`); compare deliberate ReID settings rather than assuming it is active. Review Ultralytics AGPL/Enterprise licensing separately from the original BoT-SORT repository’s MIT license.
 - Verify a real hosted processing service, model licensing, credentials, input/output contract, and costs before proposing a BoT-SORT integration. Its standard video pipeline does not run inside this app’s hosted server runtime.
 - Keep SAM 2 as the comparison baseline or possible later selected-player tool; do not immediately chain all three systems or add automatic reacquisition.
 
@@ -55,6 +56,8 @@ This alternative changes the potential test scope, not the existing app. No trac
 - Leave `PlayerPen.tsx`, `highlight.ts`, the Feedback review gate, the Twelve Labs analysis worker, and grading safeguards unchanged.
 
 ## References
+- [Official BoT-SORT repository](https://github.com/NirAharon/BoT-SORT)
+- [Ultralytics tracking configuration](https://docs.ultralytics.com/modes/track)
 - [Roboflow Serverless API](https://docs.roboflow.com/deployment/roboflow-cloud/serverless-api)
 - [Roboflow inference SDK](https://docs.roboflow.com/reference/inference/inference-sdk)
 - [Candidate hockey detector](https://universe.roboflow.com/hockey-cr8j8/hockey-player-detection-smgfc)
