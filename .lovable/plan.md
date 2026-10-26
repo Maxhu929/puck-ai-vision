@@ -5,6 +5,18 @@ On the existing experimental tracking page, Roboflow proposes boxes around visib
 
 **Detection is not personal identification:** Roboflow will not automatically know who is Max Hu or guarantee that every player is found. SAM 2 can still switch players during crossings. Hidden players cannot reliably be detected.
 
+## BoT-SORT alternative to evaluate before implementation
+BoT-SORT is a multi-object tracker, not a player detector. A hockey detector supplies boxes on consecutive frames; BoT-SORT associates them into numbered tracks. These track IDs are not jersey numbers or confirmed personal identities. This is a better-matched candidate when the goal expands from following one selected player to tracking all visible skaters.
+
+- Compare detector + BoT-SORT against the existing selected-player SAM 2 trial on the same short crossing-heavy clip before choosing the production approach.
+- Supply consecutive-frame detections, not the two-second samples proposed below; sampled detections alone are not a valid BoT-SORT video-tracking trial.
+- Keep the user’s first-frame selection as the target identity anchor. Review the resulting target track for identity switches and lost periods, rather than treating track ID persistence as proof of identity.
+- Same uniforms and occlusions remain difficult; appearance matching cannot guarantee correct re-identification. Verify the chosen implementation’s appearance model and configuration explicitly.
+- Verify a real hosted processing service, model licensing, credentials, input/output contract, and costs before proposing a BoT-SORT integration. Its standard video pipeline does not run inside this app’s hosted server runtime.
+- Keep SAM 2 as the comparison baseline or possible later selected-player tool; do not immediately chain all three systems or add automatic reacquisition.
+
+This alternative changes the potential test scope, not the existing app. No tracker is replaced while the approach is being evaluated.
+
 ## 1. Verify Roboflow access and the actual detector first
 - Roboflow is not currently connected. Its private API key will be collected in a secure form after approval, never in chat or browser code.
 - Start by checking the published hockey detector `hockey-player-detection-smgfc/1`, which lists player and referee classes. This is a candidate, not a validated model for your rink footage.
