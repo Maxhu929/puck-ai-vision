@@ -138,6 +138,80 @@ export type Database = {
         }
         Relationships: []
       }
+      sam_trials: {
+        Row: {
+          analysis_id: string
+          clip_end: number
+          clip_path: string | null
+          clip_start: number
+          created_at: string
+          fal_request_id: string | null
+          fps: number
+          height: number
+          id: string
+          labels: Json | null
+          lk_track: Json | null
+          metrics: Json | null
+          output_path: string | null
+          sam_track: Json | null
+          start_box: Json
+          status: string
+          updated_at: string
+          user_id: string
+          width: number
+        }
+        Insert: {
+          analysis_id: string
+          clip_end: number
+          clip_path?: string | null
+          clip_start: number
+          created_at?: string
+          fal_request_id?: string | null
+          fps: number
+          height: number
+          id?: string
+          labels?: Json | null
+          lk_track?: Json | null
+          metrics?: Json | null
+          output_path?: string | null
+          sam_track?: Json | null
+          start_box: Json
+          status?: string
+          updated_at?: string
+          user_id?: string
+          width: number
+        }
+        Update: {
+          analysis_id?: string
+          clip_end?: number
+          clip_path?: string | null
+          clip_start?: number
+          created_at?: string
+          fal_request_id?: string | null
+          fps?: number
+          height?: number
+          id?: string
+          labels?: Json | null
+          lk_track?: Json | null
+          metrics?: Json | null
+          output_path?: string | null
+          sam_track?: Json | null
+          start_box?: Json
+          status?: string
+          updated_at?: string
+          user_id?: string
+          width?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sam_trials_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "video_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       threads: {
         Row: {
           created_at: string
