@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, test } from "node:test";
+import { strict as assert } from "node:assert";
 import {
   boxToPixels,
   pixelsToBox,
@@ -11,9 +12,11 @@ import {
   type TrialLabels,
 } from "./sam-trial";
 
+const close = (a: number, b: number, eps = 0.01) => assert.ok(Math.abs(a - b) <= eps, `${a} not within ${eps} of ${b}`);
+
 describe("box pixel conversion", () => {
-  it("converts a 0–1 box to video pixels for fal", () => {
-    expect(boxToPixels({ x: 0.5, y: 0.25, w: 0.1, h: 0.2 }, 1280, 720)).toEqual({
+  test("converts a 0–1 box to video pixels for fal", () => {
+    assert.deepEqual(boxToPixels({ x: 0.5, y: 0.25, w: 0.1, h: 0.2 }, 1280, 720), {
       x_min: 640,
       y_min: 180,
       x_max: 768,
@@ -22,43 +25,43 @@ describe("box pixel conversion", () => {
     });
   });
 
-  it("round-trips through pixelsToBox", () => {
+  test("round-trips through pixelsToBox", () => {
     const box = { x: 0.643, y: 0.66, w: 0.045, h: 0.134 };
     const p = boxToPixels(box, 1280, 720);
     const back = pixelsToBox(p.x_min, p.y_min, p.x_max, p.y_max, 1280, 720);
-    expect(back.x).toBeCloseTo(box.x, 2);
-    expect(back.y).toBeCloseTo(box.y, 2);
-    expect(back.w).toBeCloseTo(box.w, 2);
-    expect(back.h).toBeCloseTo(box.h, 2);
+    close(back.x, box.x);
+    close(back.y, box.y);
+    close(back.w, box.w);
+    close(back.h, box.h);
   });
 
-  it("clamps out-of-frame pixel boxes to 0–1", () => {
+  test("clamps out-of-frame pixel boxes to 0–1", () => {
     const b = pixelsToBox(-50, -10, 1300, 800, 1280, 720);
-    expect(b.x).toBe(0);
-    expect(b.y).toBe(0);
-    expect(b.x + b.w).toBeLessThanOrEqual(1);
-    expect(b.y + b.h).toBeLessThanOrEqual(1);
+    assert.equal(b.x, 0);
+    assert.equal(b.y, 0);
+    assert.ok(b.x + b.w <= 1);
+    assert.ok(b.y + b.h <= 1);
   });
 });
 
 describe("frameToTime", () => {
-  it("maps mask frames onto the original video clock", () => {
-    expect(frameToTime(0, 30, 10)).toBe(10);
-    expect(frameToTime(30, 30, 10)).toBe(11);
-    expect(frameToTime(751, 30, 10)).toBeCloseTo(10 + 751 / 30, 6);
+  test("maps mask frames onto the original video clock", () => {
+    assert.equal(frameToTime(0, 30, 10), 10);
+    assert.equal(frameToTime(30, 30, 10), 11);
+    close(frameToTime(751, 30, 10), 10 + 751 / 30, 1e-6);
   });
 });
 
 describe("checkpointTimes", () => {
-  it("steps every 2 seconds from clip start", () => {
-    expect(checkpointTimes(10, 17)).toEqual([10, 12, 14, 16]);
+  test("steps every 2 seconds from clip start", () => {
+    assert.deepEqual(checkpointTimes(10, 17), [10, 12, 14, 16]);
   });
 
-  it("handles non-integer starts", () => {
+  test("handles non-integer starts", () => {
     const times = checkpointTimes(3.5, 8);
-    expect(times[0]).toBe(3.5);
-    expect(times).toHaveLength(3);
-    expect(times[1] - times[0]).toBe(CHECKPOINT_INTERVAL_SECONDS);
+    assert.equal(times[0], 3.5);
+    assert.equal(times.length, 3);
+    assert.equal(times[1] - times[0], CHECKPOINT_INTERVAL_SECONDS);
   });
 });
 
@@ -75,32 +78,32 @@ describe("computeMetrics", () => {
     return l;
   };
 
-  it("counts coverage, switches and lost time per tracker", () => {
+  test("counts coverage, switches and lost time per tracker", () => {
     // checkpoints at 0,2,4,6,8,10
     const l = labels(
       ["on_me", "on_me", "on_me", "on_me", "on_me", "on_me"],
       ["on_me", "on_me", "wrong_player", "on_me", "lost", "lost"],
     );
     const m = computeMetrics(l, 0, 12);
-    expect(m.sam.coverage).toBe(1);
-    expect(m.sam.identitySwitches).toBe(0);
-    expect(m.sam.lostCount).toBe(0);
-    expect(m.lk.coverage).toBeCloseTo(3 / 6, 6);
-    expect(m.lk.identitySwitches).toBe(1);
-    expect(m.lk.lostCount).toBe(2);
-    expect(m.lk.lostSeconds).toBe(4);
+    assert.equal(m.sam.coverage, 1);
+    assert.equal(m.sam.identitySwitches, 0);
+    assert.equal(m.sam.lostCount, 0);
+    close(m.lk.coverage, 3 / 6, 1e-6);
+    assert.equal(m.lk.identitySwitches, 1);
+    assert.equal(m.lk.lostCount, 2);
+    assert.equal(m.lk.lostSeconds, 4);
   });
 
-  it("ignores unlabeled checkpoints", () => {
+  test("ignores unlabeled checkpoints", () => {
     const l = emptyLabels();
     l.checkpoints["0"] = { sam: "on_me", lk: "lost" };
     const m = computeMetrics(l, 0, 12);
-    expect(m.sam.labeled).toBe(1);
-    expect(m.sam.coverage).toBe(1);
-    expect(m.lk.coverage).toBe(0);
+    assert.equal(m.sam.labeled, 1);
+    assert.equal(m.sam.coverage, 1);
+    assert.equal(m.lk.coverage, 0);
   });
 
-  it("restricts crossing metrics to ±2s around tagged crossings", () => {
+  test("restricts crossing metrics to ±2s around tagged crossings", () => {
     const l = labels(
       ["on_me", "on_me", "on_me", "wrong_player", "on_me", "on_me"],
       ["on_me", "wrong_player", "wrong_player", "wrong_player", "lost", "lost"],
@@ -108,43 +111,43 @@ describe("computeMetrics", () => {
     );
     const m = computeMetrics(l, 0, 12);
     // crossing at 6 → checkpoints 4, 6, 8 are in the window
-    expect(m.sam.crossing?.labeled).toBe(3);
-    expect(m.sam.crossing?.coverage).toBeCloseTo(2 / 3, 6);
-    expect(m.sam.crossing?.identitySwitches).toBe(1);
-    expect(m.lk.crossing?.identitySwitches).toBe(0); // already wrong before the window
+    assert.equal(m.sam.crossing?.labeled, 3);
+    close(m.sam.crossing?.coverage ?? 0, 2 / 3, 1e-6);
+    assert.equal(m.sam.crossing?.identitySwitches, 1);
+    assert.equal(m.lk.crossing?.identitySwitches, 0); // already wrong before the window
   });
 
-  it("reports null crossing metrics when no crossings are tagged", () => {
+  test("reports null crossing metrics when no crossings are tagged", () => {
     const m = computeMetrics(labels(["on_me"], ["on_me"]), 0, 12);
-    expect(m.sam.crossing).toBeNull();
+    assert.equal(m.sam.crossing, null);
   });
 
-  it("carries manual correction counts", () => {
+  test("carries manual correction counts", () => {
     const l = labels(["on_me"], ["on_me"]);
     l.corrections = { sam: 0, lk: 3 };
     const m = computeMetrics(l, 0, 12);
-    expect(m.lk.corrections).toBe(3);
-    expect(m.sam.corrections).toBe(0);
+    assert.equal(m.lk.corrections, 3);
+    assert.equal(m.sam.corrections, 0);
   });
 });
 
 describe("passesBar", () => {
-  it("requires 85% coverage, a 20-point lead, and at most 1 crossing switch", () => {
+  test("requires 85% coverage, a 20-point lead, and at most 1 crossing switch", () => {
     const l = emptyLabels();
     checkpointTimes(0, 20).forEach((t) => {
       l.checkpoints[String(t)] = { sam: "on_me", lk: "lost" };
     });
     const m = computeMetrics(l, 0, 20);
-    expect(m.sam.coverage).toBe(1);
-    expect(m.lk.coverage).toBe(0);
-    expect(passesBar(m)).toBe(true);
+    assert.equal(m.sam.coverage, 1);
+    assert.equal(m.lk.coverage, 0);
+    assert.equal(passesBar(m), true);
   });
 
-  it("fails when the arrow is close behind", () => {
+  test("fails when the arrow is close behind", () => {
     const l = emptyLabels();
     checkpointTimes(0, 20).forEach((t) => {
       l.checkpoints[String(t)] = { sam: "on_me", lk: "on_me" };
     });
-    expect(passesBar(computeMetrics(l, 0, 20))).toBe(false);
+    assert.equal(passesBar(computeMetrics(l, 0, 20)), false);
   });
 });
