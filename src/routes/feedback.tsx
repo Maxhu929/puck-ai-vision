@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, AlertTriangle, PlayCircle, Target, ClipboardList } from "lucide-react";
+import { CheckCircle2, AlertTriangle, PlayCircle, Target, ClipboardList, FlaskConical } from "lucide-react";
 import { PageShell } from "@/components/AppNav";
 import { Progress } from "@/components/ui/progress";
 import { feedbackCategories, timelineFeedback } from "@/lib/hockey-data";
