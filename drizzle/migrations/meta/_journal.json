@@ -64,6 +64,13 @@
       "when": 1792440895984,
       "tag": "0008_video_review_gate",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793047592101,
+      "tag": "0009_sam_trials",
+      "breakpoints": true
     }
   ]
 }

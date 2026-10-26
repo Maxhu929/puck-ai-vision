@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, AlertTriangle, PlayCircle, Target, ClipboardList } from "lucide-react";
+import { CheckCircle2, AlertTriangle, PlayCircle, Target, ClipboardList, FlaskConical } from "lucide-react";
 import { PageShell } from "@/components/AppNav";
 import { Progress } from "@/components/ui/progress";
 import { feedbackCategories, timelineFeedback } from "@/lib/hockey-data";
@@ -131,11 +131,26 @@ function FeedbackPage() {
               <ClipboardList className="size-5 shrink-0 text-ice" />
               <span>
                 <span className="block text-sm font-medium">Log your shifts</span>
-                <span className="block text-xs text-muted-foreground">
+              <span className="block text-xs text-muted-foreground">
                   Tap on and off the ice as you watch — the AI then grades only your shifts.
                 </span>
               </span>
             </button>
+          ) : null}
+          {record && videoUrl ? (
+            <Link
+              to="/sam-trial"
+              search={{ clip: record.id }}
+              className="surface-card mb-0 flex w-full items-center gap-3 rounded-xl px-5 py-3 text-left transition-colors hover:border-ice/40"
+            >
+              <FlaskConical className="size-5 shrink-0 text-gold" />
+              <span>
+                <span className="block text-sm font-medium">Tracking trial (experimental)</span>
+                <span className="block text-xs text-muted-foreground">
+                  Test a new follow-the-player tracker on a short stretch of this clip — doesn't change grading.
+                </span>
+              </span>
+            </Link>
           ) : null}
           {record?.playerIdentified === false ? (
             <div className="surface-card rounded-2xl px-5 py-4">

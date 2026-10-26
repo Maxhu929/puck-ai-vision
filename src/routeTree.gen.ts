@@ -18,6 +18,7 @@ import { Route as GearRouteImport } from './routes/gear'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as NutritionRouteImport } from './routes/nutrition'
+import { Route as SamTrialRouteImport } from './routes/sam-trial'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as StatisticsRouteImport } from './routes/statistics'
 import { Route as UploadRouteImport } from './routes/upload'
@@ -74,6 +75,11 @@ const McpRoute = McpRouteImport.update({
 const NutritionRoute = NutritionRouteImport.update({
   id: '/nutrition',
   path: '/nutrition',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SamTrialRoute = SamTrialRouteImport.update({
+  id: '/sam-trial',
+  path: '/sam-trial',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -151,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/leaderboard': typeof LeaderboardRoute
   '/mcp': typeof McpRoute
   '/nutrition': typeof NutritionRoute
+  '/sam-trial': typeof SamTrialRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/statistics': typeof StatisticsRoute
   '/upload': typeof UploadRoute
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/leaderboard': typeof LeaderboardRoute
   '/mcp': typeof McpRoute
   '/nutrition': typeof NutritionRoute
+  '/sam-trial': typeof SamTrialRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/statistics': typeof StatisticsRoute
   '/upload': typeof UploadRoute
@@ -197,6 +205,7 @@ export interface FileRoutesById {
   '/leaderboard': typeof LeaderboardRoute
   '/mcp': typeof McpRoute
   '/nutrition': typeof NutritionRoute
+  '/sam-trial': typeof SamTrialRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/statistics': typeof StatisticsRoute
   '/upload': typeof UploadRoute
@@ -222,6 +231,7 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/mcp'
     | '/nutrition'
+    | '/sam-trial'
     | '/sitemap.xml'
     | '/statistics'
     | '/upload'
@@ -244,6 +254,7 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/mcp'
     | '/nutrition'
+    | '/sam-trial'
     | '/sitemap.xml'
     | '/statistics'
     | '/upload'
@@ -267,6 +278,7 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/mcp'
     | '/nutrition'
+    | '/sam-trial'
     | '/sitemap.xml'
     | '/statistics'
     | '/upload'
@@ -291,6 +303,7 @@ export interface RootRouteChildren {
   LeaderboardRoute: typeof LeaderboardRoute
   McpRoute: typeof McpRoute
   NutritionRoute: typeof NutritionRoute
+  SamTrialRoute: typeof SamTrialRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StatisticsRoute: typeof StatisticsRoute
   UploadRoute: typeof UploadRoute
@@ -366,6 +379,13 @@ declare module '@tanstack/react-router' {
       path: '/nutrition'
       fullPath: '/nutrition'
       preLoaderRoute: typeof NutritionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sam-trial': {
+      id: '/sam-trial'
+      path: '/sam-trial'
+      fullPath: '/sam-trial'
+      preLoaderRoute: typeof SamTrialRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -479,6 +499,7 @@ const rootRouteChildren: RootRouteChildren = {
   LeaderboardRoute: LeaderboardRoute,
   McpRoute: McpRoute,
   NutritionRoute: NutritionRoute,
+  SamTrialRoute: SamTrialRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StatisticsRoute: StatisticsRoute,
   UploadRoute: UploadRoute,
