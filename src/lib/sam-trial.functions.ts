@@ -266,7 +266,7 @@ export const saveSamTrialData = createServerFn({ method: "POST" })
     if (data.labels !== undefined) changes.labels = data.labels;
     if (data.metrics !== undefined) changes.metrics = data.metrics;
     if (data.status !== undefined) changes.status = data.status;
-    const { error } = await supabaseAdmin.from("sam_trials").update(changes).eq("id", data.trialId);
+    const { error } = await supabaseAdmin.from("sam_trials").update(changes as any).eq("id", data.trialId);
     if (error) throw new Error("Could not save the trial data. Try again.");
     return { ok: true };
   });
