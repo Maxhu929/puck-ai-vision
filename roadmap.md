@@ -12,3 +12,4 @@
 - [x] Test review safeguards and signed-in review saving/readback on desktop and mobile.
 - [ ] Validate approved-copy rendering and a real coaching report — requires playable footage and the user's verified ranges and approval.
 - [ ] Trial SAM 2 on real footage — step 0 passed (fal ran the 25 s clip, mask video gives per-frame boxes, frame 0 matched the user's box). Trial page built (/sam-trial, linked from Feedback) with tests passing and a clean build. Full in-browser run is blocked in the test browser by the .mov codec issue; needs a run in the user's real browser, then the labeling pass.
+- [ ] Add Roboflow player detection before selected-player SAM 2 tracking, preserving the existing review and grading workflow — requires a verified hosted detector and Roboflow access.
