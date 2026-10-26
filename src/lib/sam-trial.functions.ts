@@ -157,7 +157,7 @@ export const submitSamTrial = createServerFn({ method: "POST" })
       headers: { Authorization: `Key ${falKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         video_url: videoUrl,
-        box_prompts: [boxToPixels(trial.start_box, trial.width, trial.height)],
+        box_prompts: [boxToPixels(trial.start_box as TrialBox, trial.width, trial.height)],
         boundingbox_zip: true,
       }),
     });
@@ -260,7 +260,7 @@ export const saveSamTrialData = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const changes: Record<string, any> = { updated_at: new Date().toISOString() };
     if (data.samTrack !== undefined) changes.sam_track = data.samTrack;
     if (data.lkTrack !== undefined) changes.lk_track = data.lkTrack;
     if (data.labels !== undefined) changes.labels = data.labels;
