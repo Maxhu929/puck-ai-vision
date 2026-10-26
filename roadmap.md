@@ -11,4 +11,4 @@
 - [x] Invalidate approval on corrections and require evidence-backed coaching notes.
 - [x] Test review safeguards and signed-in review saving/readback on desktop and mobile.
 - [ ] Validate approved-copy rendering and a real coaching report — requires playable footage and the user's verified ranges and approval.
-- [ ] Trial SAM 2 on real footage — blocked: saved fal key is rejected by fal (401); needs a working key, then run the step-0 contract check.
+- [ ] Trial SAM 2 on real footage — blocked: fal key works but the account is locked for exhausted balance ("Top up your balance at fal.ai/dashboard/billing"); after top-up, run the step-0 contract check on the 25 s clip.
