@@ -718,19 +718,23 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
   return (
     <div className="space-y-5">
       <div className="surface-card rounded-2xl p-5">
-        <h2 className="text-lg font-semibold">2 · Watch both trackers side by side</h2>
+        <h2 className="text-lg font-semibold">2 · Watch the two trackers</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Left: the current arrow. Right: SAM 2's box. Run the arrow once, then do the labeling pass — the video pauses every 2 seconds and you mark what each tracker is on.
+          Press play on the left video — both sides play together. Left: the current arrow. Right: SAM 2's box. The arrow starts by itself; just watch.
+          {lkRunning ? " The arrow is warming up…" : ""}
         </p>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" onClick={runArrow} disabled={lkRunning || !urls.clipUrl}>
-            {lkRunning ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-            {lkTrack ? "Re-run arrow tracker" : "Run arrow tracker"}
-          </Button>
-          <Button size="sm" onClick={startLabeling} disabled={!lkTrack || labeling}>
-            <Flag className="size-4" />Start labeling pass
-          </Button>
-        </div>
+        <details className="mt-3 text-sm">
+          <summary className="cursor-pointer text-muted-foreground">Optional: detailed scoring (pauses every 2 seconds)</summary>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" onClick={runArrow} disabled={lkRunning || !urls.clipUrl}>
+              {lkRunning ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+              {lkTrack ? "Re-run arrow tracker" : "Run arrow tracker"}
+            </Button>
+            <Button size="sm" onClick={startLabeling} disabled={!lkTrack || labeling}>
+              <Flag className="size-4" />Start labeling pass
+            </Button>
+          </div>
+        </details>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
