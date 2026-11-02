@@ -594,21 +594,24 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
     const align = () => { if (Math.abs(r.currentTime - l.currentTime) > frame / 2) r.currentTime = l.currentTime; };
     const onPlay = () => { align(); void r.play().catch(() => {}); };
     const onPause = () => { r.pause(); r.currentTime = l.currentTime; };
-    const onSeek = () => { r.currentTime = l.currentTime; };
+    const onSeek = () => { r.currentTime = l.currentTime; lastJump = performance.now(); };
     const onRate = () => { r.playbackRate = l.playbackRate; };
+    let lastJump = 0;
     l.addEventListener("play", onPlay);
     l.addEventListener("pause", onPause);
     l.addEventListener("seeking", onSeek);
     l.addEventListener("seeked", onSeek);
     l.addEventListener("ratechange", onRate);
     let raf = 0;
-    const loop = () => {
+    const loop = (now: number) => {
       setTime(l.currentTime);
       setRightTime(r.currentTime);
       if (!l.paused && !l.seeking && !r.seeking) {
         const drift = r.currentTime - l.currentTime;
-        if (Math.abs(drift) > 0.15) { r.currentTime = l.currentTime; r.playbackRate = l.playbackRate; }
-        else if (Math.abs(drift) > frame / 2) r.playbackRate = l.playbackRate * (drift > 0 ? 0.95 : 1.05);
+        // Big gaps: jump (at most once a second, a jump itself costs decode time — aim slightly ahead).
+        if (Math.abs(drift) > 0.4 && now - lastJump > 1000) { lastJump = now; r.currentTime = l.currentTime + 0.1 * l.playbackRate; }
+        // Small gaps: speed up / slow down the right side until it lines up.
+        else if (Math.abs(drift) > frame / 2) r.playbackRate = l.playbackRate * Math.min(1.5, Math.max(0.5, 1 - drift * 1.5));
         else r.playbackRate = l.playbackRate;
         if (r.paused) void r.play().catch(() => {});
       } else if (l.paused && !r.paused) r.pause();
