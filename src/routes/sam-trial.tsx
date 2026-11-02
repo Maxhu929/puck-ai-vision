@@ -758,6 +758,29 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
         </div>
       </div>
 
+      <div className="surface-card rounded-2xl p-5">
+        <h2 className="text-lg font-semibold">3 · One question: did SAM 2 stay on you?</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Watch the right-hand video to the end, then tap one answer. That's the whole trial.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {([["stayed", "Stayed on me the whole time"], ["sometimes", "Lost me sometimes"], ["wrong", "Followed the wrong player"]] as const).map(([value, label]) => (
+            <Button key={value} size="sm" variant={verdict === value ? "default" : "outline"} onClick={() => void saveVerdict(value)}>
+              {label}
+            </Button>
+          ))}
+        </div>
+        {verdict && (
+          <p className="mt-3 text-sm text-turf">
+            Saved. {verdict === "stayed"
+              ? "That's a great sign — SAM 2 could take over the box work."
+              : verdict === "sometimes"
+                ? "Promising but not hands-free yet — a detailed scoring pass would tell us where it loses you."
+                : "Then it's not good enough for your footage yet — the box-and-review workflow stays the way to go."}
+          </p>
+        )}
+      </div>
+
       {currentCheckpoint !== null && (
         <div className="surface-card space-y-4 rounded-2xl p-5">
           <p className="font-medium">At {fmt(currentCheckpoint)} — what is each tracker on?</p>
