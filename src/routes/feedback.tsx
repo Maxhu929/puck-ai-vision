@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, AlertTriangle, PlayCircle, Target, ClipboardList, FlaskConical } from "lucide-react";
+import { CheckCircle2, AlertTriangle, PlayCircle, Target, FlaskConical, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { PageShell } from "@/components/AppNav";
 import { Progress } from "@/components/ui/progress";
 import { feedbackCategories, timelineFeedback } from "@/lib/hockey-data";
@@ -12,7 +12,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PlayerIdentityFields } from "@/components/PlayerIdentityFields";
-import { identityDetailsSchema } from "@/lib/player-identification";
+import { boxCheckpoints, identityDetailsSchema } from "@/lib/player-identification";
 import { PlayerPen } from "@/components/PlayerPen";
 import { HighlightEditor } from "@/components/HighlightEditor";
 import { VideoReview } from "@/components/VideoReview";
@@ -39,6 +39,13 @@ export const Route = createFileRoute("/feedback")({
   component: FeedbackPage,
 });
 
+const STEPS = [
+  { title: "Log shifts", hint: "Tap on and off the ice as you watch" },
+  { title: "Box yourself", hint: "The video pauses when a box is needed" },
+  { title: "Mark clear moments", hint: "Tell us where you're clearly visible" },
+  { title: "Send to AI", hint: "Approve the highlighted copy" },
+];
+
 function FeedbackPage() {
   const { id } = Route.useSearch();
   const { data } = useQuery({
@@ -53,6 +60,8 @@ function FeedbackPage() {
   const [draftMarks, setDraftMarks] = useState<PlayerMark[] | null>(null);
   const [segments, setSegments] = useState<ReviewSegment[]>([]);
   const [savingIdentity, setSavingIdentity] = useState(false);
+  const [step, setStep] = useState(0);
+  const [editOpen, setEditOpen] = useState(false);
   const saveIdentification = useServerFn(savePlayerIdentification);
   const qc = useQueryClient();
   const initializedClip = useRef<string | null>(null);
@@ -64,6 +73,14 @@ function FeedbackPage() {
     setDraftMarks(null);
     setDraftShifts(null);
     setSegments(record.reviewSegments);
+    const shifts = record.shifts;
+    const checkpoints = boxCheckpoints(shifts, record.marks);
+    const done = [
+      shifts.length > 0,
+      checkpoints.length > 0 && checkpoints.every(c => c.covered),
+      record.reviewSegments.some(s => s.status === "verified"),
+    ];
+    setStep(done.findIndex(d => !d) === -1 ? 3 : done.findIndex(d => !d));
   }, [id, record]);
   const saveAll = async (marks?: PlayerMark[], shifts?: Array<{ start: number; end: number }>) => {
     if (!record || savingIdentity) return;
@@ -72,13 +89,12 @@ function FeedbackPage() {
       const shiftWindows = shifts ?? draftShifts;
       const result = await saveIdentification({ data: { id: record.id, details, segments, marks: marks ?? draftMarks ?? record.marks, ...(shiftWindows !== null ? { shifts: shiftWindows } : {}) } });
       if (result.error) toast.error(result.error);
-      else toast.success("Edits saved. Review and approve a copy before coaching analysis.");
+      else toast.success("Saved.");
       await qc.invalidateQueries({ queryKey: ["analysis", record.id] });
     } catch (error) { toast.error(error instanceof Error ? error.message : "Could not save identification"); }
     finally { setSavingIdentity(false); }
   };
   const videoRef = useRef<HTMLVideoElement>(null);
-  const loggerRef = useRef<HTMLDivElement>(null);
   const [draftShifts, setDraftShifts] = useState<Array<{ start: number; end: number }> | null>(null);
   const [markRequest, setMarkRequest] = useState<{ time: number; sequence: number } | null>(null);
   const playback = useQuery({
@@ -99,6 +115,7 @@ function FeedbackPage() {
   const categories = record ? (record.playerIdentified === true ? record.categories : []) : feedbackCategories;
   const grade = record ? (record.playerIdentified === true ? record.overallGrade ?? "N/A" : "N/A") : "A-";
   const drills = record && !categories.length ? [] : suggestDrills(categories);
+  const graded = record?.playerIdentified === true;
   const identityLine = record
     ? [
         record.playerName,
@@ -112,6 +129,79 @@ function FeedbackPage() {
         .join(" · ")
     : "Bantam AA vs. Northside — 2nd Period · 12:40";
 
+  const shiftsNow = record ? draftShifts ?? record.shifts : [];
+  const marksNow = record ? draftMarks ?? record.marks : [];
+  const checkpoints = record ? boxCheckpoints(shiftsNow, marksNow) : [];
+  const boxedCount = checkpoints.filter(c => c.covered).length;
+  const stepDone = [
+    shiftsNow.length > 0,
+    checkpoints.length > 0 && boxedCount === checkpoints.length,
+    segments.some(s => s.status === "verified"),
+  ];
+
+  const next = async () => {
+    await saveAll();
+    setStep(s => Math.min(s + 1, STEPS.length - 1));
+  };
+
+  const wizard = record && videoUrl ? (
+    <div className="surface-card rounded-2xl p-5">
+      <ol className="flex flex-wrap gap-2">
+        {STEPS.map((s, i) => {
+          const complete = i < STEPS.length - 1 ? stepDone[i] : false;
+          const active = i === step;
+          return (
+            <li key={s.title}>
+              <button
+                type="button"
+                onClick={() => setStep(i)}
+                className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors ${active ? "border-ice bg-ice/10 font-medium" : complete ? "border-turf/50 text-turf" : "border-border text-muted-foreground hover:border-ice/40"}`}
+              >
+                <span className={`flex size-5 items-center justify-center rounded-full text-xs ${complete ? "bg-turf/20 text-turf" : active ? "bg-ice/20 text-ice" : "bg-muted text-muted-foreground"}`}>
+                  {complete ? <Check className="size-3" /> : i + 1}
+                </span>
+                {s.title}
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="mt-3 text-sm text-muted-foreground">{STEPS[step].hint}</p>
+
+      <div className="mt-4">
+        {step === 0 && (
+          <ShiftLogger key={record.id} analysisId={record.id} initial={record.shifts} videoRef={videoRef} onShiftsChange={setDraftShifts} onSave={(shifts) => saveAll(undefined, shifts)} onMarkShift={(time) => setMarkRequest((previous) => ({ time, sequence: (previous?.sequence ?? 0) + 1 }))} />
+        )}
+        {step === 1 && (
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>
+              <span className="font-medium text-foreground">{boxedCount} of {checkpoints.length} boxes done.</span>{" "}
+              Just play the video above — it pauses by itself each time a box is needed. Draw a box around yourself, and it continues.
+            </p>
+            {checkpoints.length === 0 && <p>Log a shift first so we know when you're on the ice.</p>}
+          </div>
+        )}
+        {step === 2 && (
+          <VideoReview segments={segments} onChange={setSegments} shifts={shiftsNow} videoRef={videoRef} onSave={() => void saveAll()} saving={savingIdentity} />
+        )}
+        {step === 3 && (
+          <HighlightEditor key={`hl-${record.id}`} analysisId={record.id} videoUrl={videoUrl} marks={marksNow} shifts={shiftsNow} segments={segments} details={details} onSent={() => void qc.invalidateQueries({ queryKey: ["analysis", record.id] })} />
+        )}
+      </div>
+
+      {step < STEPS.length - 1 && (
+        <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+          <Button variant="ghost" size="sm" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0}>
+            <ChevronLeft className="size-4" />Back
+          </Button>
+          <Button size="sm" onClick={() => void next()} disabled={savingIdentity}>
+            {savingIdentity ? "Saving…" : "Save & continue"}<ChevronRight className="size-4" />
+          </Button>
+        </div>
+      )}
+    </div>
+  ) : null;
+
   return (
     <PageShell title="AI Feedback" subtitle={identityLine}>
       {!record ? <ClipPicker /> : null}
@@ -122,36 +212,6 @@ function FeedbackPage() {
       </div>}
       <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
         <div className="space-y-6">
-          {record && videoUrl ? (
-            <button
-              type="button"
-              onClick={() => loggerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
-              className="surface-card flex w-full items-center gap-3 rounded-xl px-5 py-3 text-left transition-colors hover:border-ice/40"
-            >
-              <ClipboardList className="size-5 shrink-0 text-ice" />
-              <span>
-                <span className="block text-sm font-medium">Log your shifts</span>
-              <span className="block text-xs text-muted-foreground">
-                  Tap on and off the ice as you watch — the AI then grades only your shifts.
-                </span>
-              </span>
-            </button>
-          ) : null}
-          {record && videoUrl ? (
-            <Link
-              to="/sam-trial"
-              search={{ clip: record.id }}
-              className="surface-card mb-0 flex w-full items-center gap-3 rounded-xl px-5 py-3 text-left transition-colors hover:border-ice/40"
-            >
-              <FlaskConical className="size-5 shrink-0 text-gold" />
-              <span>
-                <span className="block text-sm font-medium">Tracking trial (experimental)</span>
-                <span className="block text-xs text-muted-foreground">
-                  Test a new follow-the-player tracker on a short stretch of this clip — doesn't change grading.
-                </span>
-              </span>
-            </Link>
-          ) : null}
           {record?.playerIdentified === false ? (
             <div className="surface-card rounded-2xl px-5 py-4">
               <div className="flex gap-3">
@@ -162,7 +222,7 @@ function FeedbackPage() {
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">{record.summary || "The footage may be from a different game, or the player may not be on the ice."}</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Add a box at each shift start and update the identifying clues below before re-grading.
+                    Work through the steps below — box yourself at each pause — then send the reviewed copy.
                   </p>
                 </div>
               </div>
@@ -170,7 +230,7 @@ function FeedbackPage() {
           ) : null}
           {videoUrl ? (
             record ? (
-              <PlayerPen key={record.id} analysisId={record.id} initial={record.marks} videoRef={videoRef} shifts={draftShifts ?? record.shifts} segments={segments} markRequest={markRequest} onMarksChange={setDraftMarks} onSave={saveAll}>
+              <PlayerPen key={record.id} analysisId={record.id} initial={record.marks} videoRef={videoRef} shifts={shiftsNow} segments={segments} markRequest={markRequest} onMarksChange={setDraftMarks} onSave={saveAll} simple>
                 <video
                   ref={videoRef}
                   crossOrigin="anonymous"
@@ -206,24 +266,27 @@ function FeedbackPage() {
           </div>
           )}
 
-          {record && videoUrl ? (
-            <div ref={loggerRef}>
-              <ShiftLogger key={record.id} analysisId={record.id} initial={record.shifts} videoRef={videoRef} onShiftsChange={setDraftShifts} onSave={(shifts) => saveAll(undefined, shifts)} onMarkShift={(time) => setMarkRequest((previous) => ({ time, sequence: (previous?.sequence ?? 0) + 1 }))} />
-            </div>
-          ) : null}
+          {graded && !editOpen ? (
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              className="text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Change your markings and re-grade
+            </button>
+          ) : wizard}
 
-          {record && videoUrl ? (
-            <VideoReview segments={segments} onChange={setSegments} shifts={draftShifts ?? record.shifts} videoRef={videoRef} onSave={() => void saveAll()} saving={savingIdentity} />
-          ) : null}
-          {record && videoUrl ? (
-            <HighlightEditor key={`hl-${record.id}`} analysisId={record.id} videoUrl={videoUrl} marks={draftMarks ?? record.marks} shifts={draftShifts ?? record.shifts} segments={segments} details={details} onSent={() => void qc.invalidateQueries({ queryKey: ["analysis", record.id] })} />
-          ) : null}
+          {record && (
+            <details className="surface-card rounded-2xl px-5 py-4">
+              <summary className="cursor-pointer text-sm font-medium">Extra clues (optional)</summary>
+              <p className="mt-1 text-sm text-muted-foreground">Only needed if the AI keeps mixing you up with a teammate.</p>
+              <div className="mt-4">
+                <PlayerIdentityFields value={details} onChange={setDetails} />
+                <Button className="mt-4" onClick={() => saveAll()} disabled={savingIdentity}>{savingIdentity ? "Saving…" : "Save clues"}</Button>
+              </div>
+            </details>
+          )}
 
-          {record && <section className="space-y-4 border-t border-border pt-5">
-            <h2 className="text-xl font-semibold">Player identification clues</h2>
-            <PlayerIdentityFields value={details} onChange={setDetails} />
-            <Button onClick={() => saveAll()} disabled={savingIdentity}>{savingIdentity ? "Saving…" : "Save identification"}</Button>
-          </section>}
           {record?.identificationEvidence && <section className="space-y-3 border-t border-border pt-5">
             <h2 className="text-xl font-semibold">Identity check · {record.identificationEvidence.confidence} confidence</h2>
             <ul className="space-y-2 text-sm text-muted-foreground">{record.identificationEvidence.observedClues.map((clue, i) => <li key={i}>{clue}</li>)}</ul>
@@ -292,6 +355,17 @@ function FeedbackPage() {
               ))}
             </div>
           </div>
+
+          {record && (
+            <Link
+              to="/sam-trial"
+              search={{ clip: record.id }}
+              className="flex items-center gap-2 text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              <FlaskConical className="size-4 text-gold" />
+              Tracking trial (experimental) — test a follow-the-player tracker on this clip
+            </Link>
+          )}
         </div>
 
         <aside className="space-y-6">
