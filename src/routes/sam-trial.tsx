@@ -199,7 +199,8 @@ function ClipPicker({ onPick }: { onPick: (id: string) => void }) {
 }
 
 /** Measure the letterboxed video frame inside its container so overlays align. */
-function useVideoFrame(videoRef: RefObject<HTMLVideoElement | null>, containerRef: RefObject<HTMLDivElement | null>) {
+/** `displayRef` is the element the picture is shown in (defaults to the video; a mirror canvas otherwise). */
+function useVideoFrame(videoRef: RefObject<HTMLVideoElement | null>, containerRef: RefObject<HTMLDivElement | null>, displayRef?: RefObject<HTMLElement | null>) {
   const [frame, setFrame] = useState({ left: 0, top: 0, width: 100, height: 100 });
   useEffect(() => {
     const v = videoRef.current;
@@ -208,7 +209,7 @@ function useVideoFrame(videoRef: RefObject<HTMLVideoElement | null>, containerRe
     const measure = () => {
       if (!v.videoWidth || !v.videoHeight) return;
       // Measure the <video> element itself (the overlay is positioned against the same container).
-      const vr = v.getBoundingClientRect(), cr = container.getBoundingClientRect();
+      const vr = (displayRef?.current ?? v).getBoundingClientRect(), cr = container.getBoundingClientRect();
       if (!cr.width || !cr.height) return;
       const inner = containedFrame(vr.width, vr.height, v.videoWidth, v.videoHeight);
       setFrame({
@@ -221,12 +222,13 @@ function useVideoFrame(videoRef: RefObject<HTMLVideoElement | null>, containerRe
     const observer = new ResizeObserver(measure);
     observer.observe(container);
     observer.observe(v);
+    if (displayRef?.current) observer.observe(displayRef.current);
     measure();
     v.addEventListener("loadedmetadata", measure);
     v.addEventListener("resize", measure);
     window.addEventListener("resize", measure);
     return () => { observer.disconnect(); v.removeEventListener("loadedmetadata", measure); v.removeEventListener("resize", measure); window.removeEventListener("resize", measure); };
-  }, [videoRef, containerRef]);
+  }, [videoRef, containerRef, displayRef]);
   return frame;
 }
 
@@ -557,11 +559,11 @@ function ExtractStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
 
 function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: SamTrialRecord) => void }) {
   const leftRef = useRef<HTMLVideoElement>(null);
-  const rightRef = useRef<HTMLVideoElement>(null);
   const leftContainer = useRef<HTMLDivElement>(null);
   const rightContainer = useRef<HTMLDivElement>(null);
   const leftFrame = useVideoFrame(leftRef, leftContainer);
-  const rightFrame = useVideoFrame(rightRef, rightContainer);
+  const rightCanvas = useRef<HTMLCanvasElement>(null);
+  const rightFrame = useVideoFrame(leftRef, rightContainer, rightCanvas);
 
   const [urls, setUrls] = useState<{ clipUrl: string | null }>({ clipUrl: null });
   const [lkTrack, setLkTrack] = useState<LkSample[] | null>(trial.lkTrack);
@@ -586,7 +588,6 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
   // Both sides show the SAME decoded video: the right panel paints the left video's current
   // frame onto a canvas every animation frame. One decoder means play, pause, seeking and speed
   // changes can never drift apart, and both boxes are read for that exact frame.
-  const rightCanvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const l = leftRef.current, c = rightCanvas.current;
     if (!l || !c) return;
@@ -693,7 +694,6 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
       const hit = checkpoints.find((t) => t > absFrom - 0.001 && t <= absTo && !labels.checkpoints[String(t)]?.sam);
       if (hit !== undefined && !v.seeking) {
         v.pause();
-        rightRef.current?.pause();
         setCurrentCheckpoint(hit);
       }
     };
@@ -728,7 +728,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
     }
     await save({ data: { trialId: trial.id, labels: next } });
     const v = leftRef.current;
-    if (v) { void v.play(); void rightRef.current?.play(); }
+    if (v) void v.play();
   };
 
   const samBox = (() => {
@@ -750,7 +750,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
       <div className="surface-card rounded-2xl p-5">
         <h2 className="text-lg font-semibold">2 · Watch the two trackers</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Press play on the left video — both sides play together. Left: the current arrow. Right: SAM 2's box. The arrow starts by itself; just watch.
+          Press play on the left video — the right side shows the exact same frame, so they can't drift apart. Left: the current arrow. Right: SAM 2's box. The arrow starts by itself; just watch.
           {lkRunning ? " The arrow is warming up…" : ""}
         </p>
         <details className="mt-3 text-sm">
@@ -853,7 +853,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
       {labeling && currentCheckpoint === null && (
         <div className="surface-card flex items-center gap-3 rounded-2xl p-4 text-sm text-muted-foreground">
           <Pause className="size-4" />Playing — it will pause at the next checkpoint.
-          <Button size="sm" variant="ghost" onClick={() => { leftRef.current?.pause(); rightRef.current?.pause(); setLabeling(false); }}><Square className="size-3" />Stop labeling</Button>
+          <Button size="sm" variant="ghost" onClick={() => { leftRef.current?.pause(); setLabeling(false); }}><Square className="size-3" />Stop labeling</Button>
         </div>
       )}
 
