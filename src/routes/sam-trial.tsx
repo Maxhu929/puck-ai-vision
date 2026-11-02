@@ -11,6 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { getVideoPlaybackUrl, listAnalyses } from "@/lib/analysis.functions";
 import {
+  trialClipSize,
+  containedFrame,
+  nearestSample,
   createSamTrial,
   getSamTrialUrls,
   getTrialUploadUrl,
@@ -204,31 +207,37 @@ function useVideoFrame(videoRef: RefObject<HTMLVideoElement | null>, containerRe
     if (!v || !container) return;
     const measure = () => {
       if (!v.videoWidth || !v.videoHeight) return;
-      const scale = Math.min(container.clientWidth / v.videoWidth, container.clientHeight / v.videoHeight);
+      // Measure the <video> element itself (the overlay is positioned against the same container).
+      const vr = v.getBoundingClientRect(), cr = container.getBoundingClientRect();
+      if (!cr.width || !cr.height) return;
+      const inner = containedFrame(vr.width, vr.height, v.videoWidth, v.videoHeight);
       setFrame({
-        left: (100 - (v.videoWidth * scale) / container.clientWidth * 100) / 2,
-        top: (100 - (v.videoHeight * scale) / container.clientHeight * 100) / 2,
-        width: (v.videoWidth * scale) / container.clientWidth * 100,
-        height: (v.videoHeight * scale) / container.clientHeight * 100,
+        left: ((vr.left - cr.left) + (inner.left / 100) * vr.width) / cr.width * 100,
+        top: ((vr.top - cr.top) + (inner.top / 100) * vr.height) / cr.height * 100,
+        width: (inner.width / 100) * vr.width / cr.width * 100,
+        height: (inner.height / 100) * vr.height / cr.height * 100,
       });
     };
     const observer = new ResizeObserver(measure);
     observer.observe(container);
+    observer.observe(v);
     measure();
     v.addEventListener("loadedmetadata", measure);
-    return () => { observer.disconnect(); v.removeEventListener("loadedmetadata", measure); };
+    v.addEventListener("resize", measure);
+    window.addEventListener("resize", measure);
+    return () => { observer.disconnect(); v.removeEventListener("loadedmetadata", measure); v.removeEventListener("resize", measure); window.removeEventListener("resize", measure); };
   }, [videoRef, containerRef]);
   return frame;
 }
 
 /** Minimal box-drawing overlay (same interaction as the feedback page's box tool). */
-function BoxDrawer({ videoRef, active, box, onBox }: {
+function BoxDrawer({ videoRef, containerRef, active, box, onBox }: {
   videoRef: RefObject<HTMLVideoElement | null>;
+  containerRef: RefObject<HTMLDivElement | null>;
   active: boolean;
   box: TrialBox | null;
   onBox: (b: TrialBox | null) => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const frame = useVideoFrame(videoRef, containerRef);
   const origin = useRef<[number, number] | null>(null);
   const [draft, setDraft] = useState<TrialBox | null>(null);
@@ -285,7 +294,8 @@ function SetupStep({ analysisId, videoUrl, onCreated, onWorking, onDone }: {
   const getUploadUrl = useServerFn(getTrialUploadUrl);
   const submit = useServerFn(submitSamTrial);
 
-  const cutClip = async (trialId: string): Promise<void> => {
+  /** Cut the stretch on-device at the source's own shape, then report the real output size. */
+  const cutClip = async (size: { width: number; height: number }) => {
     onWorking("Cutting your test clip on this device…", 5);
     const res = await fetch(videoUrl);
     const blob = await res.blob();
@@ -295,7 +305,7 @@ function SetupStep({ analysisId, videoUrl, onCreated, onWorking, onDone }: {
     const conversion = await mb.Conversion.init({
       input,
       output,
-      video: { height: 720, frameRate: 30, bitrate: 2_000_000 },
+      video: { width: size.width, height: size.height, fit: "fill", frameRate: 30, bitrate: 2_000_000, allowRotationMetadata: false },
       audio: { discard: true },
       trim: { start, end: Math.min(start + length, start + MAX_CLIP_SECONDS) },
       showWarnings: false,
@@ -305,7 +315,15 @@ function SetupStep({ analysisId, videoUrl, onCreated, onWorking, onDone }: {
     await conversion.execute();
     const buffer = output.target.buffer;
     if (!buffer || !buffer.byteLength) throw new Error("Cutting produced no video.");
+    // Read back the actual frame size so the box sent to SAM 2 uses the clip's true pixels.
+    const probe = new mb.Input({ source: new mb.BufferSource(buffer), formats: mb.ALL_FORMATS });
+    const track = await probe.getPrimaryVideoTrack();
+    if (!track) throw new Error("The cut clip has no video.");
+    if (track.rotation !== 0) throw new Error("The cut clip kept a rotation flag; try a different stretch.");
+    return { buffer, width: track.displayWidth, height: track.displayHeight };
+  };
 
+  const uploadAndSubmit = async (trialId: string, buffer: ArrayBuffer) => {
     onWorking("Uploading the test clip…", 55);
     const upload = await getUploadUrl({ data: { trialId } });
     await new Promise<void>((resolve, reject) => {
@@ -329,19 +347,20 @@ function SetupStep({ analysisId, videoUrl, onCreated, onWorking, onDone }: {
     if (!v.videoWidth) { toast.error("Wait for the video to load first."); return; }
     setBusy(true);
     try {
+      const cut = await cutClip(trialClipSize(v.videoWidth, v.videoHeight));
       const { record } = await create({
         data: {
           analysisId,
           clipStart: start,
           clipEnd: Math.min(start + length, v.duration || start + length),
           fps: 30,
-          width: 1280,
-          height: 720,
+          width: cut.width,
+          height: cut.height,
           startBox: box,
         },
       });
       onCreated(record);
-      await cutClip(record.id);
+      await uploadAndSubmit(record.id, cut.buffer);
       onDone({ ...record, status: "submitted" });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not start the trial.");
@@ -387,7 +406,7 @@ function SetupStep({ analysisId, videoUrl, onCreated, onWorking, onDone }: {
           preload="metadata"
           className="surface-card aspect-video w-full rounded-2xl bg-background"
         />
-        <BoxDrawer videoRef={videoRef} active={drawing} box={box} onBox={(b) => { setBox(b); setDrawing(false); }} />
+        <BoxDrawer videoRef={videoRef} containerRef={containerRef} active={drawing} box={box} onBox={(b) => { setBox(b); setDrawing(false); }} />
         {drawing && <div className="pointer-events-none absolute left-3 bottom-14 rounded-md bg-background/85 px-3 py-1 text-xs font-medium">Draw a box around yourself on the first frame</div>}
       </div>
 
