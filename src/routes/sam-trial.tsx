@@ -86,8 +86,7 @@ function SamTrialPage() {
 
   const openTrial = (t: SamTrialRecord) => {
     setTrial(t);
-    if (t.status === "completed" && t.samTrack && t.lkTrack && t.metrics) setPhase("done");
-    else if (t.status === "completed" && t.samTrack) setPhase("compare");
+    if (t.samTrack) setPhase(t.metrics || t.labels?.verdict ? "done" : "compare");
     else if (t.status === "completed") setPhase("extracting");
     else if (t.status === "submitted") setPhase("polling");
     else setPhase("setup");
@@ -354,25 +353,28 @@ function SetupStep({ analysisId, videoUrl, onCreated, onWorking, onDone }: {
   return (
     <div className="space-y-4">
       <div className="surface-card rounded-2xl p-5">
-        <h2 className="text-lg font-semibold">1 · Choose the stretch and box yourself</h2>
+        <h2 className="text-lg font-semibold">1 · Box yourself on the first frame</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Pick a {MAX_CLIP_SECONDS}-second-or-shorter stretch where you cross paths with teammates. Seek the video to where the stretch should start, then draw a box around yourself on that first frame.
+          That's the only thing you have to do. The trial uses the first {MAX_CLIP_SECONDS} seconds of the clip — ideally a stretch where you cross paths with teammates.
         </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <div className="space-y-2">
-            <Label htmlFor="start">Start (seconds)</Label>
-            <Input id="start" type="number" min={0} step={0.5} value={start} onChange={(e) => setStart(Math.max(0, Number(e.target.value) || 0))} />
+        <details className="mt-3 text-sm">
+          <summary className="cursor-pointer text-muted-foreground">Advanced: choose a different stretch</summary>
+          <div className="mt-3 grid gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="start">Start (seconds)</Label>
+              <Input id="start" type="number" min={0} step={0.5} value={start} onChange={(e) => setStart(Math.max(0, Number(e.target.value) || 0))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="length">Length (seconds, max {MAX_CLIP_SECONDS})</Label>
+              <Input id="length" type="number" min={5} max={MAX_CLIP_SECONDS} value={length} onChange={(e) => setLength(Math.min(MAX_CLIP_SECONDS, Math.max(5, Number(e.target.value) || 25)))} />
+            </div>
+            <div className="flex items-end">
+              <Button variant="outline" size="sm" onClick={() => { const v = videoRef.current; if (v) { v.pause(); setStart(Math.round(v.currentTime * 2) / 2); } }}>
+                Use current time as start
+              </Button>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="length">Length (seconds, max {MAX_CLIP_SECONDS})</Label>
-            <Input id="length" type="number" min={5} max={MAX_CLIP_SECONDS} value={length} onChange={(e) => setLength(Math.min(MAX_CLIP_SECONDS, Math.max(5, Number(e.target.value) || 25)))} />
-          </div>
-          <div className="flex items-end">
-            <Button variant="outline" size="sm" onClick={() => { const v = videoRef.current; if (v) { v.pause(); setStart(Math.round(v.currentTime * 2) / 2); } }}>
-              Use current time as start
-            </Button>
-          </div>
-        </div>
+        </details>
       </div>
 
       <div ref={containerRef} className="relative">
