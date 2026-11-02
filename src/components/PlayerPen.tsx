@@ -190,7 +190,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
       </svg>
       {boxOn && <div className="pointer-events-none absolute left-3 bottom-14 rounded-md bg-background/85 px-3 py-1 text-xs font-medium">{placingArrow ? "Select player for arrow" : "Box player"} · {fmt(anchorTime.current)}</div>}
     </div>
-    <div className="space-y-3 border-b border-border py-3">
+    {!simple && <div className="space-y-3 border-b border-border py-3">
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={() => boxOn ? cancel() : beginBox(videoRef.current?.currentTime ?? 0)} variant={boxOn ? "secondary" : "default"} size="sm" disabled={saving}>
           {boxOn ? <X className="size-4" /> : <Scan className="size-4" />}{boxOn ? "Cancel box" : "Box player"}
