@@ -583,15 +583,45 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trial.id]);
 
-  // Keep the right video roughly in sync with the left.
+  // The left video is the leader: the right mirrors play, pause, seek and speed, and drift is
+  // corrected every animation frame. Each overlay reads its own video's time so a box never
+  // sits on a different frame than the picture under it.
+  const [rightTime, setRightTime] = useState(0);
   useEffect(() => {
     const l = leftRef.current, r = rightRef.current;
     if (!l || !r) return;
-    const sync = () => { if (Math.abs(r.currentTime - l.currentTime) > 0.3) r.currentTime = l.currentTime; };
-    const onTime = () => { setTime(l.currentTime); sync(); };
-    l.addEventListener("timeupdate", onTime);
-    return () => l.removeEventListener("timeupdate", onTime);
-  }, [urls.clipUrl]);
+    const frame = 1 / (trial.fps || 30);
+    const align = () => { if (Math.abs(r.currentTime - l.currentTime) > frame / 2) r.currentTime = l.currentTime; };
+    const onPlay = () => { align(); void r.play().catch(() => {}); };
+    const onPause = () => { r.pause(); r.currentTime = l.currentTime; };
+    const onSeek = () => { r.currentTime = l.currentTime; };
+    const onRate = () => { r.playbackRate = l.playbackRate; };
+    l.addEventListener("play", onPlay);
+    l.addEventListener("pause", onPause);
+    l.addEventListener("seeking", onSeek);
+    l.addEventListener("seeked", onSeek);
+    l.addEventListener("ratechange", onRate);
+    let raf = 0;
+    const loop = () => {
+      setTime(l.currentTime);
+      setRightTime(r.currentTime);
+      if (!l.paused && !l.seeking && !r.seeking) {
+        const drift = r.currentTime - l.currentTime;
+        if (Math.abs(drift) > 0.15) { r.currentTime = l.currentTime; r.playbackRate = l.playbackRate; }
+        else if (Math.abs(drift) > frame / 2) r.playbackRate = l.playbackRate * (drift > 0 ? 0.95 : 1.05);
+        else r.playbackRate = l.playbackRate;
+        if (r.paused) void r.play().catch(() => {});
+      } else if (l.paused && !r.paused) r.pause();
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(raf);
+      l.removeEventListener("play", onPlay); l.removeEventListener("pause", onPause);
+      l.removeEventListener("seeking", onSeek); l.removeEventListener("seeked", onSeek);
+      l.removeEventListener("ratechange", onRate);
+    };
+  }, [urls.clipUrl, trial.fps]);
 
   const runArrow = async () => {
     const video = leftRef.current;
@@ -720,14 +750,12 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
 
   const samBox = (() => {
     if (!samTrack.length) return null;
-    const f = Math.min(samTrack.length - 1, Math.round(time * trial.fps));
-    const s = samTrack[f];
+    const s = nearestSample(samTrack, trial.clipStart + rightTime, 1.5 / trial.fps);
     return s && !s.lost ? s : null;
   })();
   const lkBox = (() => {
     if (!lkTrack?.length) return null;
-    const f = Math.min(lkTrack.length - 1, Math.round(time * trial.fps));
-    const s = lkTrack[f];
+    const s = nearestSample(lkTrack, trial.clipStart + time, 0.1);
     return s && !s.lost ? s : null;
   })();
 
