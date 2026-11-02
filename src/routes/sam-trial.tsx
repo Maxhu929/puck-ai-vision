@@ -583,48 +583,28 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trial.id]);
 
-  // The left video is the leader: the right mirrors play, pause, seek and speed, and drift is
-  // corrected every animation frame. Each overlay reads its own video's time so a box never
-  // sits on a different frame than the picture under it.
-  const [rightTime, setRightTime] = useState(0);
+  // Both sides show the SAME decoded video: the right panel paints the left video's current
+  // frame onto a canvas every animation frame. One decoder means play, pause, seeking and speed
+  // changes can never drift apart, and both boxes are read for that exact frame.
+  const rightCanvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const l = leftRef.current, r = rightRef.current;
-    if (!l || !r) return;
-    const frame = 1 / (trial.fps || 30);
-    const align = () => { if (Math.abs(r.currentTime - l.currentTime) > frame / 2) r.currentTime = l.currentTime; };
-    const onPlay = () => { align(); void r.play().catch(() => {}); };
-    const onPause = () => { r.pause(); r.currentTime = l.currentTime; };
-    const onSeek = () => { r.currentTime = l.currentTime; lastJump = performance.now(); };
-    const onRate = () => { r.playbackRate = l.playbackRate; };
-    let lastJump = 0;
-    l.addEventListener("play", onPlay);
-    l.addEventListener("pause", onPause);
-    l.addEventListener("seeking", onSeek);
-    l.addEventListener("seeked", onSeek);
-    l.addEventListener("ratechange", onRate);
+    const l = leftRef.current, c = rightCanvas.current;
+    if (!l || !c) return;
+    const ctx = c.getContext("2d");
     let raf = 0;
-    const loop = (now: number) => {
+    const paint = () => {
       setTime(l.currentTime);
-      setRightTime(r.currentTime);
-      if (!l.paused && !l.seeking && !r.seeking) {
-        const drift = r.currentTime - l.currentTime;
-        // Big gaps: jump (at most once a second, a jump itself costs decode time — aim slightly ahead).
-        if (Math.abs(drift) > 0.4 && now - lastJump > 1000) { lastJump = now; r.currentTime = l.currentTime + 0.1 * l.playbackRate; }
-        // Small gaps: speed up / slow down the right side until it lines up.
-        else if (Math.abs(drift) > frame / 2) r.playbackRate = l.playbackRate * Math.min(1.5, Math.max(0.5, 1 - drift * 1.5));
-        else r.playbackRate = l.playbackRate;
-        if (r.paused) void r.play().catch(() => {});
-      } else if (l.paused && !r.paused) r.pause();
-      raf = requestAnimationFrame(loop);
+      if (ctx && l.videoWidth && l.readyState >= 2) {
+        if (c.width !== l.videoWidth || c.height !== l.videoHeight) { c.width = l.videoWidth; c.height = l.videoHeight; }
+        ctx.drawImage(l, 0, 0, c.width, c.height);
+      }
     };
+    const loop = () => { paint(); raf = requestAnimationFrame(loop); };
     raf = requestAnimationFrame(loop);
-    return () => {
-      cancelAnimationFrame(raf);
-      l.removeEventListener("play", onPlay); l.removeEventListener("pause", onPause);
-      l.removeEventListener("seeking", onSeek); l.removeEventListener("seeked", onSeek);
-      l.removeEventListener("ratechange", onRate);
-    };
-  }, [urls.clipUrl, trial.fps]);
+    l.addEventListener("seeked", paint);
+    l.addEventListener("loadeddata", paint);
+    return () => { cancelAnimationFrame(raf); l.removeEventListener("seeked", paint); l.removeEventListener("loadeddata", paint); };
+  }, [urls.clipUrl]);
 
   const runArrow = async () => {
     const video = leftRef.current;
@@ -753,7 +733,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
 
   const samBox = (() => {
     if (!samTrack.length) return null;
-    const s = nearestSample(samTrack, trial.clipStart + rightTime, 1.5 / trial.fps);
+    const s = nearestSample(samTrack, trial.clipStart + time, 1.5 / trial.fps);
     return s && !s.lost ? s : null;
   })();
   const lkBox = (() => {
@@ -800,7 +780,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
         <div>
           <p className="mb-2 text-sm font-medium">SAM 2 {samBox ? "" : "· lost here"}</p>
           <div ref={rightContainer} className="relative">
-            <video ref={rightRef} crossOrigin="anonymous" src={urls.clipUrl ?? undefined} muted playsInline preload="auto" className="surface-card aspect-video w-full rounded-2xl bg-background" />
+            <canvas ref={rightCanvas} aria-label="SAM 2 view (same video, synced frame by frame)" className="surface-card aspect-video w-full rounded-2xl bg-background object-contain" />
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute" style={{ left: `${rightFrame.left}%`, top: `${rightFrame.top}%`, width: `${rightFrame.width}%`, height: `${rightFrame.height}%` }}>
               {samBox && <rect x={samBox.x * 100} y={samBox.y * 100} width={samBox.w * 100} height={samBox.h * 100} fill="none" stroke="var(--color-turf)" strokeWidth={3} vectorEffect="non-scaling-stroke" />}
             </svg>
