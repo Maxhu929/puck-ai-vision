@@ -11,9 +11,6 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { getVideoPlaybackUrl, listAnalyses } from "@/lib/analysis.functions";
 import {
-  trialClipSize,
-  containedFrame,
-  nearestSample,
   createSamTrial,
   getSamTrialUrls,
   getTrialUploadUrl,
@@ -24,6 +21,9 @@ import {
   type SamTrialRecord,
 } from "@/lib/sam-trial.functions";
 import {
+  trialClipSize,
+  containedFrame,
+  nearestSample,
   checkpointTimes,
   computeMetrics,
   emptyLabels,
