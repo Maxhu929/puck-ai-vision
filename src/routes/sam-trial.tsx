@@ -871,11 +871,14 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
               </tbody>
             </table>
           </div>
-          <p className="mt-4 text-sm">
-            {passesBar(metrics)
-              ? "Verdict: SAM 2 clears the pass bar (85%+ on you, 20+ points ahead of the arrow, at most 1 switch at crossings). Worth building into the app."
-              : "Verdict: SAM 2 does not clear the pass bar on this clip. The current review-and-box workflow stays the way to go."}
-          </p>
+          )}
+          {metrics && (
+            <p className="mt-4 text-sm">
+              {passesBar(metrics)
+                ? "Verdict: SAM 2 clears the pass bar (85%+ on you, 20+ points ahead of the arrow, at most 1 switch at crossings). Worth building into the app."
+                : "Verdict: SAM 2 does not clear the pass bar on this clip. The current review-and-box workflow stays the way to go."}
+            </p>
+          )}
         </div>
       )}
     </div>
