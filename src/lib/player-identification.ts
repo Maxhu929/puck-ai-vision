@@ -72,3 +72,8 @@ export function nextCrossedCheckpoint(checkpoints: Array<{ time: number; covered
     .filter((c) => !c.covered && c.time > from && c.time <= to)
     .sort((a, b) => a.time - b.time)[0];
 }
+
+/** An unboxed checkpoint the playhead is sitting on when playback starts, so pressing play there still stops for a box. */
+export function unboxedCheckpointAt(checkpoints: Array<{ time: number; covered: boolean }>, time: number, tolerance = 0.35) {
+  return checkpoints.find((c) => !c.covered && Math.abs(c.time - time) <= tolerance);
+}

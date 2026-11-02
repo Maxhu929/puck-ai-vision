@@ -66,31 +66,52 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
     };
   }, [videoRef]);
 
-  /** Playback stops itself at every checkpoint that still needs a box, so a moment is never scrolled past. */
+  /** Latest render state for the long-lived playback listener, so re-renders never reset the crossing detector. */
+  const live = useRef({ checkpoints: checkpointsFor(marks), boxOn, beginBox: (_t: number) => {} });
+  const skipped = useRef<number | null>(null);
+  live.current.checkpoints = checkpointsFor(marks);
+  live.current.boxOn = boxOn;
+
+  /** Playback stops itself at every checkpoint that still needs a box, so a moment is never scrolled past.
+   *  While a box is being drawn, playback is held at that moment until the user draws it or skips it. */
   useEffect(() => {
     const v = videoRef.current;
-    if (!v || boxOn) return;
-    const checkpoints = checkpointsFor(marks);
-    if (!checkpoints.some((c) => !c.covered)) return;
+    if (!v) return;
     let from = v.currentTime;
-    const onSeeked = () => { from = v.currentTime; };
-    const onTime = () => {
-      const to = v.currentTime;
-      const hit = nextCrossedCheckpoint(checkpoints, from, to);
-      from = to;
-      if (!hit || v.paused || v.seeking) return;
+    const stopFor = (t: number) => {
       v.pause();
       setGuided(true);
-      beginBox(hit.time);
-      toast.info(`Paused at ${fmt(hit.time)} — box yourself here`);
+      live.current.beginBox(t);
+      toast.info(`Paused at ${fmt(t)} — box yourself here`);
     };
+    const onSeeked = () => { from = v.currentTime; };
+    const onPlay = () => {
+      if (live.current.boxOn) {
+        v.pause();
+        toast.info("Draw a box around yourself first, or tap Skip.");
+        return;
+      }
+      const here = unboxedCheckpointAt(live.current.checkpoints, v.currentTime);
+      if (here && skipped.current !== here.time) { stopFor(here.time); return; }
+      from = v.currentTime;
+    };
+    const onTime = () => {
+      const to = v.currentTime;
+      if (live.current.boxOn) { if (!v.paused) v.pause(); from = to; return; }
+      const hit = nextCrossedCheckpoint(live.current.checkpoints, from, to);
+      from = to;
+      if (!hit || v.paused || v.seeking) return;
+      stopFor(hit.time);
+    };
+    v.addEventListener("play", onPlay);
     v.addEventListener("timeupdate", onTime);
     v.addEventListener("seeked", onSeeked);
     return () => {
+      v.removeEventListener("play", onPlay);
       v.removeEventListener("timeupdate", onTime);
       v.removeEventListener("seeked", onSeeked);
     };
-  }, [videoRef, shifts, marks, boxOn, segments]);
+  }, [videoRef]);
 
   const beginBox = (t: number) => {
     const v = videoRef.current;
