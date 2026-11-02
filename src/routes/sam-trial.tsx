@@ -620,6 +620,27 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
     }
   };
 
+  // The arrow runs by itself once the clip is ready — one less thing to click.
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (autoRan.current || !urls.clipUrl || lkTrack || lkRunning) return;
+    autoRan.current = true;
+    void runArrow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urls.clipUrl]);
+
+  const saveVerdict = async (v: TrialVerdict) => {
+    const next: TrialLabels = { ...labels, verdict: v };
+    setLabels(next);
+    setVerdict(v);
+    try {
+      await save({ data: { trialId: trial.id, labels: next, status: "labeled" } });
+      onDone({ ...trial, labels: next, lkTrack, status: "labeled" });
+    } catch {
+      toast.error("Could not save your answer — try again.");
+    }
+  };
+
   // Labeling: pause at each unlabeled checkpoint.
   const startLabeling = () => {
     const v = leftRef.current;
