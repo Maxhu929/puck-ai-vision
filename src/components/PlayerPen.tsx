@@ -10,7 +10,7 @@ import { containsTime, type ReviewSegment } from "@/lib/video-review";
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
 
 /** Normalized boxes are stored in video-frame coordinates, not the letterboxed player. */
-export function PlayerPen({ analysisId, initial, videoRef, children, shifts, segments, markRequest, onMarksChange, onSave }: {
+export function PlayerPen({ analysisId, initial, videoRef, children, shifts, segments, markRequest, onMarksChange, onSave, simple }: {
   analysisId: string;
   initial: PlayerMark[];
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -20,6 +20,8 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
   markRequest: { time: number; sequence: number } | null;
   onMarksChange: (marks: PlayerMark[]) => void;
   onSave: (marks?: PlayerMark[]) => Promise<void>;
+  /** Hides the manual toolbar and experimental arrow when a guided flow drives the boxing. */
+  simple?: boolean;
 }) {
   const [marks, setMarks] = useState<PlayerMark[]>(initial);
   const [boxOn, setBoxOn] = useState(false);
@@ -169,7 +171,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
   return <div className="space-y-3">
     <div ref={boxRef} className="relative">
       {children}
-      <PlayerTrackingArrow videoRef={videoRef} frame={frame} request={trackingRequest} onPlace={() => { setGuided(false); setPlacingArrow(true); beginBox(videoRef.current?.currentTime ?? 0); }} />
+      {!simple && <PlayerTrackingArrow videoRef={videoRef} frame={frame} request={trackingRequest} onPlace={() => { setGuided(false); setPlacingArrow(true); beginBox(videoRef.current?.currentTime ?? 0); }} />}
       <svg aria-label="Player bounding box overlay" viewBox="0 0 100 100" preserveAspectRatio="none"
         style={{ left: `${frame.left}%`, top: `${frame.top}%`, width: `${frame.width}%`, height: `${frame.height}%` }}
         className={`absolute ${boxOn ? "cursor-crosshair touch-none" : "pointer-events-none"}`}
