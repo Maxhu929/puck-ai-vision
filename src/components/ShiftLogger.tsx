@@ -29,10 +29,15 @@ export function ShiftLogger({
   const updateShifts = (next: Shift[]) => { setShifts(next); onShiftsChange(next); };
 
   const now = () => videoRef.current?.currentTime ?? 0;
+  const videoEnd = () => { const d = videoRef.current?.duration; return d && Number.isFinite(d) ? d : now() + 1; };
+  // A shift left open (no "Off ice" tap) counts until the end of the video, so saving never drops it.
+  const withOpen = (start: number | null) =>
+    start === null ? shifts : [...shifts, { start, end: Math.max(videoEnd(), start + 0.1) }].sort((a, b) => a.start - b.start);
   const toggle = () => {
     const t = now();
     if (openStart === null) {
       setOpenStart(t);
+      onShiftsChange(withOpen(t));
       onMarkShift(t);
     } else {
       if (t <= openStart) { toast.error("Move to the end of your shift before tapping Off ice."); return; }
@@ -50,8 +55,10 @@ export function ShiftLogger({
   const save = async () => {
     setSaving(true);
     try {
-      onShiftsChange(shifts);
-      await onSave(shifts);
+      const all = withOpen(openStart);
+      if (openStart !== null) { setShifts(all); setOpenStart(null); }
+      onShiftsChange(all);
+      await onSave(all);
     } catch {
       toast.error("Couldn't save right now. Try again in a minute.");
     } finally {
@@ -72,7 +79,7 @@ export function ShiftLogger({
           {openStart === null ? <LogIn className="size-4" /> : <LogOut className="size-4" />}
           {openStart === null ? "On ice" : `Off ice (on since ${fmt(openStart)})`}
         </Button>
-        {openStart !== null && <Button variant="ghost" onClick={() => setOpenStart(null)}>Cancel shift</Button>}
+        {openStart !== null && <Button variant="ghost" onClick={() => { setOpenStart(null); onShiftsChange(shifts); }}>Cancel shift</Button>}
         <span className="text-sm text-muted-foreground">
           {shifts.length} shift{shifts.length === 1 ? "" : "s"} · {fmt(total)} ice time
         </span>
@@ -96,7 +103,7 @@ export function ShiftLogger({
           ))}
         </ul>
       )}
-      <Button onClick={save} disabled={saving || openStart !== null} className="w-full">
+      <Button onClick={save} disabled={saving} className="w-full">
         {saving ? <Loader2 className="size-4 animate-spin" /> : null}
         {saving ? "Saving…" : "Save shifts"}
       </Button>
