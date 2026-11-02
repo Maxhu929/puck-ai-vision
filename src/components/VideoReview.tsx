@@ -35,6 +35,12 @@ export function VideoReview({ segments, onChange, shifts, videoRef, onSave, savi
       <h2 className="text-xl font-semibold">Review player visibility</h2>
       <span className="text-sm text-muted-foreground">{fmt(seconds)} verified on ice</span>
     </div>
+    {shifts.length > 0 && <div className="rounded-xl border border-ice/40 bg-ice/5 p-4">
+      <p className="text-sm">Quickest option: if you're clearly visible for your whole time on ice, tap once.</p>
+      <Button className="mt-3" onClick={() => onChange([...segments.filter(s => s.status !== "verified"), ...shifts.map(s => ({ start: s.start, end: s.end, status: "verified" as const }))].sort((a, b) => a.start - b.start))}>
+        <CheckCircle2 className="size-4" />I'm clearly visible the whole time
+      </Button>
+    </div>}
     <div className="flex gap-2">
       <Button size="icon" variant="outline" aria-label="Step backward" title="Step backward" onClick={() => step(-1)}><SkipBack className="size-4" /></Button>
       <Button size="icon" variant="outline" aria-label="Step forward" title="Step forward" onClick={() => step(1)}><SkipForward className="size-4" /></Button>
