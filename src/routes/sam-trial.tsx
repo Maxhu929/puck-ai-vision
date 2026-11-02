@@ -397,7 +397,7 @@ function SetupStep({ analysisId, videoUrl, onCreated, onWorking, onDone }: {
         </Button>
         <Button onClick={start2} disabled={!box || busy}>
           {busy ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />}
-          {busy ? "Working…" : "Cut clip & run SAM 2"}
+          {busy ? "Working…" : "Run SAM 2 trial"}
         </Button>
         {box && <span className="text-sm text-turf">Box set — ready to run.</span>}
       </div>
@@ -549,6 +549,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
   const [lkRunning, setLkRunning] = useState(false);
   const [time, setTime] = useState(0);
   const [labels, setLabels] = useState<TrialLabels>(trial.labels ?? emptyLabels());
+  const [verdict, setVerdict] = useState<TrialVerdict | undefined>(trial.labels?.verdict);
   const [labeling, setLabeling] = useState(false);
   const [currentCheckpoint, setCurrentCheckpoint] = useState<number | null>(null);
   const getUrls = useServerFn(getSamTrialUrls);
