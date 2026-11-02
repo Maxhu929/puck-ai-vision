@@ -223,6 +223,6 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
         <Button variant="ghost" size="sm" onClick={() => { if (videoRef.current) { videoRef.current.pause(); videoRef.current.currentTime = m.time; } }}>Box at {fmt(m.time)}</Button>
         <Button variant="ghost" size="icon" aria-label={`Remove box at ${fmt(m.time)}`} title="Remove box" disabled={saving} onClick={() => setMarks((all) => all.filter((_, j) => j !== i))}><X className="size-3" /></Button>
       </div>)}</div>}
-    </div>
+    </div>}
   </div>;
 }

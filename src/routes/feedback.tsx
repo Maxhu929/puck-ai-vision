@@ -230,7 +230,7 @@ function FeedbackPage() {
           ) : null}
           {videoUrl ? (
             record ? (
-              <PlayerPen key={record.id} analysisId={record.id} initial={record.marks} videoRef={videoRef} shifts={shiftsNow} segments={segments} markRequest={markRequest} onMarksChange={setDraftMarks} onSave={saveAll}>
+              <PlayerPen key={record.id} analysisId={record.id} initial={record.marks} videoRef={videoRef} shifts={shiftsNow} segments={segments} markRequest={markRequest} onMarksChange={setDraftMarks} onSave={saveAll} simple>
                 <video
                   ref={videoRef}
                   crossOrigin="anonymous"
