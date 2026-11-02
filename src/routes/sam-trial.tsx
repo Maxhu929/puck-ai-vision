@@ -827,9 +827,10 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
         </div>
       )}
 
-      {metrics && (
+      {(metrics || verdict) && (
         <div className="surface-card rounded-2xl p-5">
-          <h2 className="text-lg font-semibold">3 · Results</h2>
+          <h2 className="text-lg font-semibold">Results</h2>
+          {metrics && (
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
