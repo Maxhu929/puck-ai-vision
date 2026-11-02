@@ -21,6 +21,9 @@ import {
   type SamTrialRecord,
 } from "@/lib/sam-trial.functions";
 import {
+  trialClipSize,
+  containedFrame,
+  nearestSample,
   checkpointTimes,
   computeMetrics,
   emptyLabels,
@@ -196,7 +199,8 @@ function ClipPicker({ onPick }: { onPick: (id: string) => void }) {
 }
 
 /** Measure the letterboxed video frame inside its container so overlays align. */
-function useVideoFrame(videoRef: RefObject<HTMLVideoElement | null>, containerRef: RefObject<HTMLDivElement | null>) {
+/** `displayRef` is the element the picture is shown in (defaults to the video; a mirror canvas otherwise). */
+function useVideoFrame(videoRef: RefObject<HTMLVideoElement | null>, containerRef: RefObject<HTMLDivElement | null>, displayRef?: RefObject<HTMLElement | null>) {
   const [frame, setFrame] = useState({ left: 0, top: 0, width: 100, height: 100 });
   useEffect(() => {
     const v = videoRef.current;
@@ -204,31 +208,38 @@ function useVideoFrame(videoRef: RefObject<HTMLVideoElement | null>, containerRe
     if (!v || !container) return;
     const measure = () => {
       if (!v.videoWidth || !v.videoHeight) return;
-      const scale = Math.min(container.clientWidth / v.videoWidth, container.clientHeight / v.videoHeight);
+      // Measure the <video> element itself (the overlay is positioned against the same container).
+      const vr = (displayRef?.current ?? v).getBoundingClientRect(), cr = container.getBoundingClientRect();
+      if (!cr.width || !cr.height) return;
+      const inner = containedFrame(vr.width, vr.height, v.videoWidth, v.videoHeight);
       setFrame({
-        left: (100 - (v.videoWidth * scale) / container.clientWidth * 100) / 2,
-        top: (100 - (v.videoHeight * scale) / container.clientHeight * 100) / 2,
-        width: (v.videoWidth * scale) / container.clientWidth * 100,
-        height: (v.videoHeight * scale) / container.clientHeight * 100,
+        left: ((vr.left - cr.left) + (inner.left / 100) * vr.width) / cr.width * 100,
+        top: ((vr.top - cr.top) + (inner.top / 100) * vr.height) / cr.height * 100,
+        width: (inner.width / 100) * vr.width / cr.width * 100,
+        height: (inner.height / 100) * vr.height / cr.height * 100,
       });
     };
     const observer = new ResizeObserver(measure);
     observer.observe(container);
+    observer.observe(v);
+    if (displayRef?.current) observer.observe(displayRef.current);
     measure();
     v.addEventListener("loadedmetadata", measure);
-    return () => { observer.disconnect(); v.removeEventListener("loadedmetadata", measure); };
-  }, [videoRef, containerRef]);
+    v.addEventListener("resize", measure);
+    window.addEventListener("resize", measure);
+    return () => { observer.disconnect(); v.removeEventListener("loadedmetadata", measure); v.removeEventListener("resize", measure); window.removeEventListener("resize", measure); };
+  }, [videoRef, containerRef, displayRef]);
   return frame;
 }
 
 /** Minimal box-drawing overlay (same interaction as the feedback page's box tool). */
-function BoxDrawer({ videoRef, active, box, onBox }: {
+function BoxDrawer({ videoRef, containerRef, active, box, onBox }: {
   videoRef: RefObject<HTMLVideoElement | null>;
+  containerRef: RefObject<HTMLDivElement | null>;
   active: boolean;
   box: TrialBox | null;
   onBox: (b: TrialBox | null) => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const frame = useVideoFrame(videoRef, containerRef);
   const origin = useRef<[number, number] | null>(null);
   const [draft, setDraft] = useState<TrialBox | null>(null);
@@ -285,7 +296,8 @@ function SetupStep({ analysisId, videoUrl, onCreated, onWorking, onDone }: {
   const getUploadUrl = useServerFn(getTrialUploadUrl);
   const submit = useServerFn(submitSamTrial);
 
-  const cutClip = async (trialId: string): Promise<void> => {
+  /** Cut the stretch on-device at the source's own shape, then report the real output size. */
+  const cutClip = async (size: { width: number; height: number }) => {
     onWorking("Cutting your test clip on this device…", 5);
     const res = await fetch(videoUrl);
     const blob = await res.blob();
@@ -295,7 +307,7 @@ function SetupStep({ analysisId, videoUrl, onCreated, onWorking, onDone }: {
     const conversion = await mb.Conversion.init({
       input,
       output,
-      video: { height: 720, frameRate: 30, bitrate: 2_000_000 },
+      video: { width: size.width, height: size.height, fit: "fill", frameRate: 30, bitrate: 2_000_000, allowRotationMetadata: false },
       audio: { discard: true },
       trim: { start, end: Math.min(start + length, start + MAX_CLIP_SECONDS) },
       showWarnings: false,
@@ -305,7 +317,15 @@ function SetupStep({ analysisId, videoUrl, onCreated, onWorking, onDone }: {
     await conversion.execute();
     const buffer = output.target.buffer;
     if (!buffer || !buffer.byteLength) throw new Error("Cutting produced no video.");
+    // Read back the actual frame size so the box sent to SAM 2 uses the clip's true pixels.
+    const probe = new mb.Input({ source: new mb.BufferSource(buffer), formats: mb.ALL_FORMATS });
+    const track = await probe.getPrimaryVideoTrack();
+    if (!track) throw new Error("The cut clip has no video.");
+    if (track.rotation !== 0) throw new Error("The cut clip kept a rotation flag; try a different stretch.");
+    return { buffer, width: track.displayWidth, height: track.displayHeight };
+  };
 
+  const uploadAndSubmit = async (trialId: string, buffer: ArrayBuffer) => {
     onWorking("Uploading the test clip…", 55);
     const upload = await getUploadUrl({ data: { trialId } });
     await new Promise<void>((resolve, reject) => {
@@ -329,19 +349,20 @@ function SetupStep({ analysisId, videoUrl, onCreated, onWorking, onDone }: {
     if (!v.videoWidth) { toast.error("Wait for the video to load first."); return; }
     setBusy(true);
     try {
+      const cut = await cutClip(trialClipSize(v.videoWidth, v.videoHeight));
       const { record } = await create({
         data: {
           analysisId,
           clipStart: start,
           clipEnd: Math.min(start + length, v.duration || start + length),
           fps: 30,
-          width: 1280,
-          height: 720,
+          width: cut.width,
+          height: cut.height,
           startBox: box,
         },
       });
       onCreated(record);
-      await cutClip(record.id);
+      await uploadAndSubmit(record.id, cut.buffer);
       onDone({ ...record, status: "submitted" });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not start the trial.");
@@ -387,7 +408,7 @@ function SetupStep({ analysisId, videoUrl, onCreated, onWorking, onDone }: {
           preload="metadata"
           className="surface-card aspect-video w-full rounded-2xl bg-background"
         />
-        <BoxDrawer videoRef={videoRef} active={drawing} box={box} onBox={(b) => { setBox(b); setDrawing(false); }} />
+        <BoxDrawer videoRef={videoRef} containerRef={containerRef} active={drawing} box={box} onBox={(b) => { setBox(b); setDrawing(false); }} />
         {drawing && <div className="pointer-events-none absolute left-3 bottom-14 rounded-md bg-background/85 px-3 py-1 text-xs font-medium">Draw a box around yourself on the first frame</div>}
       </div>
 
@@ -538,11 +559,11 @@ function ExtractStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
 
 function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: SamTrialRecord) => void }) {
   const leftRef = useRef<HTMLVideoElement>(null);
-  const rightRef = useRef<HTMLVideoElement>(null);
   const leftContainer = useRef<HTMLDivElement>(null);
   const rightContainer = useRef<HTMLDivElement>(null);
   const leftFrame = useVideoFrame(leftRef, leftContainer);
-  const rightFrame = useVideoFrame(rightRef, rightContainer);
+  const rightCanvas = useRef<HTMLCanvasElement>(null);
+  const rightFrame = useVideoFrame(leftRef, rightContainer, rightCanvas);
 
   const [urls, setUrls] = useState<{ clipUrl: string | null }>({ clipUrl: null });
   const [lkTrack, setLkTrack] = useState<LkSample[] | null>(trial.lkTrack);
@@ -564,14 +585,26 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trial.id]);
 
-  // Keep the right video roughly in sync with the left.
+  // Both sides show the SAME decoded video: the right panel paints the left video's current
+  // frame onto a canvas every animation frame. One decoder means play, pause, seeking and speed
+  // changes can never drift apart, and both boxes are read for that exact frame.
   useEffect(() => {
-    const l = leftRef.current, r = rightRef.current;
-    if (!l || !r) return;
-    const sync = () => { if (Math.abs(r.currentTime - l.currentTime) > 0.3) r.currentTime = l.currentTime; };
-    const onTime = () => { setTime(l.currentTime); sync(); };
-    l.addEventListener("timeupdate", onTime);
-    return () => l.removeEventListener("timeupdate", onTime);
+    const l = leftRef.current, c = rightCanvas.current;
+    if (!l || !c) return;
+    const ctx = c.getContext("2d");
+    let raf = 0;
+    const paint = () => {
+      setTime(l.currentTime);
+      if (ctx && l.videoWidth && l.readyState >= 2) {
+        if (c.width !== l.videoWidth || c.height !== l.videoHeight) { c.width = l.videoWidth; c.height = l.videoHeight; }
+        ctx.drawImage(l, 0, 0, c.width, c.height);
+      }
+    };
+    const loop = () => { paint(); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    l.addEventListener("seeked", paint);
+    l.addEventListener("loadeddata", paint);
+    return () => { cancelAnimationFrame(raf); l.removeEventListener("seeked", paint); l.removeEventListener("loadeddata", paint); };
   }, [urls.clipUrl]);
 
   const runArrow = async () => {
@@ -661,7 +694,6 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
       const hit = checkpoints.find((t) => t > absFrom - 0.001 && t <= absTo && !labels.checkpoints[String(t)]?.sam);
       if (hit !== undefined && !v.seeking) {
         v.pause();
-        rightRef.current?.pause();
         setCurrentCheckpoint(hit);
       }
     };
@@ -696,19 +728,17 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
     }
     await save({ data: { trialId: trial.id, labels: next } });
     const v = leftRef.current;
-    if (v) { void v.play(); void rightRef.current?.play(); }
+    if (v) void v.play();
   };
 
   const samBox = (() => {
     if (!samTrack.length) return null;
-    const f = Math.min(samTrack.length - 1, Math.round(time * trial.fps));
-    const s = samTrack[f];
+    const s = nearestSample(samTrack, trial.clipStart + time, 1.5 / trial.fps);
     return s && !s.lost ? s : null;
   })();
   const lkBox = (() => {
     if (!lkTrack?.length) return null;
-    const f = Math.min(lkTrack.length - 1, Math.round(time * trial.fps));
-    const s = lkTrack[f];
+    const s = nearestSample(lkTrack, trial.clipStart + time, 0.1);
     return s && !s.lost ? s : null;
   })();
 
@@ -720,7 +750,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
       <div className="surface-card rounded-2xl p-5">
         <h2 className="text-lg font-semibold">2 · Watch the two trackers</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Press play on the left video — both sides play together. Left: the current arrow. Right: SAM 2's box. The arrow starts by itself; just watch.
+          Press play on the left video — the right side shows the exact same frame, so they can't drift apart. Left: the current arrow. Right: SAM 2's box. The arrow starts by itself; just watch.
           {lkRunning ? " The arrow is warming up…" : ""}
         </p>
         <details className="mt-3 text-sm">
@@ -750,7 +780,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
         <div>
           <p className="mb-2 text-sm font-medium">SAM 2 {samBox ? "" : "· lost here"}</p>
           <div ref={rightContainer} className="relative">
-            <video ref={rightRef} crossOrigin="anonymous" src={urls.clipUrl ?? undefined} muted playsInline preload="auto" className="surface-card aspect-video w-full rounded-2xl bg-background" />
+            <canvas ref={rightCanvas} aria-label="SAM 2 view (same video, synced frame by frame)" className="surface-card aspect-video w-full rounded-2xl bg-background object-contain" />
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute" style={{ left: `${rightFrame.left}%`, top: `${rightFrame.top}%`, width: `${rightFrame.width}%`, height: `${rightFrame.height}%` }}>
               {samBox && <rect x={samBox.x * 100} y={samBox.y * 100} width={samBox.w * 100} height={samBox.h * 100} fill="none" stroke="var(--color-turf)" strokeWidth={3} vectorEffect="non-scaling-stroke" />}
             </svg>
@@ -823,7 +853,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
       {labeling && currentCheckpoint === null && (
         <div className="surface-card flex items-center gap-3 rounded-2xl p-4 text-sm text-muted-foreground">
           <Pause className="size-4" />Playing — it will pause at the next checkpoint.
-          <Button size="sm" variant="ghost" onClick={() => { leftRef.current?.pause(); rightRef.current?.pause(); setLabeling(false); }}><Square className="size-3" />Stop labeling</Button>
+          <Button size="sm" variant="ghost" onClick={() => { leftRef.current?.pause(); setLabeling(false); }}><Square className="size-3" />Stop labeling</Button>
         </div>
       )}
 

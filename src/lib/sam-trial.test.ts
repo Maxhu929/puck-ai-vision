@@ -8,6 +8,9 @@ import {
   computeMetrics,
   emptyLabels,
   passesBar,
+  trialClipSize,
+  containedFrame,
+  nearestSample,
   CHECKPOINT_INTERVAL_SECONDS,
   type TrialLabels,
 } from "./sam-trial";
@@ -150,4 +153,28 @@ describe("passesBar", () => {
     });
     assert.equal(passesBar(computeMetrics(l, 0, 20)), false);
   });
+});
+
+describe("clip size and overlay alignment", () => {
+  test("keeps the source shape for landscape, portrait and odd sizes", () => {
+    assert.deepEqual(trialClipSize(1920, 1080), { width: 1280, height: 720 });
+    assert.deepEqual(trialClipSize(1080, 1920), { width: 406, height: 720 });
+    assert.deepEqual(trialClipSize(640, 480), { width: 640, height: 480 });
+    assert.deepEqual(trialClipSize(1440, 1080), { width: 960, height: 720 });
+  });
+  test("portrait video in a wide box is pillarboxed in the middle", () => {
+    const f = containedFrame(1600, 900, 1080, 1920);
+    close(f.height, 100); close(f.top, 0);
+    close(f.width, (1080 * (900 / 1920)) / 1600 * 100);
+    close(f.left, (100 - f.width) / 2);
+  });
+  test("matching shape fills the box", () => {
+    assert.deepEqual(containedFrame(1280, 720, 1920, 1080), { left: 0, top: 0, width: 100, height: 100 });
+  });
+});
+
+describe("nearestSample", () => {
+  const s = [0, 0.033, 0.067, 0.1, 0.5].map((time) => ({ time }));
+  test("finds the closest time", () => { assert.equal(nearestSample(s, 0.06)?.time, 0.067); assert.equal(nearestSample(s, 0.04)?.time, 0.033); });
+  test("returns null when no sample is close (no stale box shown)", () => { assert.equal(nearestSample(s, 0.3), null); assert.equal(nearestSample([], 1), null); });
 });

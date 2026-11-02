@@ -49,6 +49,30 @@ export const MIN_MASK_AREA = 0.0004;
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
+/** Size of the cut test clip: same shape as the source, at most 720 px tall, even dimensions. */
+export function trialClipSize(sourceWidth: number, sourceHeight: number, maxHeight = 720) {
+  const even = (v: number) => Math.max(2, Math.round(v / 2) * 2);
+  const height = even(Math.min(maxHeight, sourceHeight));
+  return { width: even((sourceWidth / sourceHeight) * height), height };
+}
+
+/** Letterboxed position of a video frame inside its box, in % of the box (object-fit: contain). */
+export function containedFrame(boxWidth: number, boxHeight: number, videoWidth: number, videoHeight: number) {
+  const scale = Math.min(boxWidth / videoWidth, boxHeight / videoHeight);
+  const width = (videoWidth * scale) / boxWidth * 100;
+  const height = (videoHeight * scale) / boxHeight * 100;
+  return { left: (100 - width) / 2, top: (100 - height) / 2, width, height };
+}
+
+/** Sample whose time is nearest to `time` (samples sorted by time); null when farther than maxGap. */
+export function nearestSample<T extends { time: number }>(samples: T[], time: number, maxGap = 0.1): T | null {
+  if (!samples.length) return null;
+  let lo = 0, hi = samples.length - 1;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (samples[mid].time < time) lo = mid + 1; else hi = mid; }
+  const best = lo > 0 && Math.abs(samples[lo - 1].time - time) <= Math.abs(samples[lo].time - time) ? samples[lo - 1] : samples[lo];
+  return Math.abs(best.time - time) <= maxGap ? best : null;
+}
+
 /** fal's box_prompts want pixels in the video frame; the app stores 0–1 boxes. */
 export function boxToPixels(box: TrialBox, width: number, height: number) {
   return {
