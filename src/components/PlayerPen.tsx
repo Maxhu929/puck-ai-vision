@@ -3,7 +3,7 @@ import { Scan, Undo2, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { type PlayerMark } from "@/lib/analysis.functions";
-import { boxCheckpoints, nextCrossedCheckpoint, BOX_INTERVAL_SECONDS } from "@/lib/player-identification";
+import { boxCheckpoints, nextCrossedCheckpoint, unboxedCheckpointAt, BOX_INTERVAL_SECONDS } from "@/lib/player-identification";
 import { PlayerTrackingArrow } from "@/components/PlayerTrackingArrow";
 import { containsTime, type ReviewSegment } from "@/lib/video-review";
 
@@ -126,6 +126,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
     setBoxOn(true);
     v.scrollIntoView({ behavior: "smooth", block: "center" });
   };
+  live.current.beginBox = beginBox;
 
   useEffect(() => {
     if (markRequest) beginBox(markRequest.time);
@@ -178,6 +179,8 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
       setGuided(false);
     }
   };
+  /** Lets playback continue past this checkpoint without a box; it stays listed as missing. */
+  const skip = () => { skipped.current = anchorTime.current; cancel(); };
   const cancel = () => { setPlacingArrow(false); setGuided(false); setBoxOn(false); setDraft(null); origin.current = null; draftRef.current = null; };
   const save = async () => {
     setSaving(true);
@@ -209,7 +212,10 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
         {visible.map((m, i) => rectangle(m, String(i)))}
         {draft ? rectangle(draft, "draft") : null}
       </svg>
-      {boxOn && <div className="pointer-events-none absolute left-3 bottom-14 rounded-md bg-background/85 px-3 py-1 text-xs font-medium">{placingArrow ? "Select player for arrow" : "Box player"} · {fmt(anchorTime.current)}</div>}
+      {boxOn && <div className="absolute left-3 bottom-14 flex items-center gap-2 rounded-md bg-background/85 px-3 py-1 text-xs font-medium">
+        <span>{placingArrow ? "Select player for arrow" : "Draw a box around yourself"} · {fmt(anchorTime.current)}</span>
+        <button type="button" onClick={skip} className="rounded px-1.5 py-0.5 text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">Skip</button>
+      </div>}
     </div>
     {!simple && <div className="space-y-3 border-b border-border py-3">
       <div className="flex flex-wrap items-center gap-2">
