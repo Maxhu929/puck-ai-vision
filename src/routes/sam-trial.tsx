@@ -33,6 +33,7 @@ import {
   type SamFrame,
   type TrialBox,
   type TrialLabels,
+  type TrialVerdict,
 } from "@/lib/sam-trial";
 import type { PlayerTracker } from "@/lib/player-tracker";
 
@@ -85,8 +86,7 @@ function SamTrialPage() {
 
   const openTrial = (t: SamTrialRecord) => {
     setTrial(t);
-    if (t.status === "completed" && t.samTrack && t.lkTrack && t.metrics) setPhase("done");
-    else if (t.status === "completed" && t.samTrack) setPhase("compare");
+    if (t.samTrack) setPhase(t.metrics || t.labels?.verdict ? "done" : "compare");
     else if (t.status === "completed") setPhase("extracting");
     else if (t.status === "submitted") setPhase("polling");
     else setPhase("setup");
@@ -353,25 +353,28 @@ function SetupStep({ analysisId, videoUrl, onCreated, onWorking, onDone }: {
   return (
     <div className="space-y-4">
       <div className="surface-card rounded-2xl p-5">
-        <h2 className="text-lg font-semibold">1 · Choose the stretch and box yourself</h2>
+        <h2 className="text-lg font-semibold">1 · Box yourself on the first frame</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Pick a {MAX_CLIP_SECONDS}-second-or-shorter stretch where you cross paths with teammates. Seek the video to where the stretch should start, then draw a box around yourself on that first frame.
+          That's the only thing you have to do. The trial uses the first {MAX_CLIP_SECONDS} seconds of the clip — ideally a stretch where you cross paths with teammates.
         </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <div className="space-y-2">
-            <Label htmlFor="start">Start (seconds)</Label>
-            <Input id="start" type="number" min={0} step={0.5} value={start} onChange={(e) => setStart(Math.max(0, Number(e.target.value) || 0))} />
+        <details className="mt-3 text-sm">
+          <summary className="cursor-pointer text-muted-foreground">Advanced: choose a different stretch</summary>
+          <div className="mt-3 grid gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="start">Start (seconds)</Label>
+              <Input id="start" type="number" min={0} step={0.5} value={start} onChange={(e) => setStart(Math.max(0, Number(e.target.value) || 0))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="length">Length (seconds, max {MAX_CLIP_SECONDS})</Label>
+              <Input id="length" type="number" min={5} max={MAX_CLIP_SECONDS} value={length} onChange={(e) => setLength(Math.min(MAX_CLIP_SECONDS, Math.max(5, Number(e.target.value) || 25)))} />
+            </div>
+            <div className="flex items-end">
+              <Button variant="outline" size="sm" onClick={() => { const v = videoRef.current; if (v) { v.pause(); setStart(Math.round(v.currentTime * 2) / 2); } }}>
+                Use current time as start
+              </Button>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="length">Length (seconds, max {MAX_CLIP_SECONDS})</Label>
-            <Input id="length" type="number" min={5} max={MAX_CLIP_SECONDS} value={length} onChange={(e) => setLength(Math.min(MAX_CLIP_SECONDS, Math.max(5, Number(e.target.value) || 25)))} />
-          </div>
-          <div className="flex items-end">
-            <Button variant="outline" size="sm" onClick={() => { const v = videoRef.current; if (v) { v.pause(); setStart(Math.round(v.currentTime * 2) / 2); } }}>
-              Use current time as start
-            </Button>
-          </div>
-        </div>
+        </details>
       </div>
 
       <div ref={containerRef} className="relative">
@@ -394,7 +397,7 @@ function SetupStep({ analysisId, videoUrl, onCreated, onWorking, onDone }: {
         </Button>
         <Button onClick={start2} disabled={!box || busy}>
           {busy ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />}
-          {busy ? "Working…" : "Cut clip & run SAM 2"}
+          {busy ? "Working…" : "Run SAM 2 trial"}
         </Button>
         {box && <span className="text-sm text-turf">Box set — ready to run.</span>}
       </div>
@@ -546,6 +549,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
   const [lkRunning, setLkRunning] = useState(false);
   const [time, setTime] = useState(0);
   const [labels, setLabels] = useState<TrialLabels>(trial.labels ?? emptyLabels());
+  const [verdict, setVerdict] = useState<TrialVerdict | undefined>(trial.labels?.verdict);
   const [labeling, setLabeling] = useState(false);
   const [currentCheckpoint, setCurrentCheckpoint] = useState<number | null>(null);
   const getUrls = useServerFn(getSamTrialUrls);
@@ -613,6 +617,27 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
       toast.error(e instanceof Error ? e.message : "The arrow tracker couldn't start on this clip.");
     } finally {
       setLkRunning(false);
+    }
+  };
+
+  // The arrow runs by itself once the clip is ready — one less thing to click.
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (autoRan.current || !urls.clipUrl || lkTrack || lkRunning) return;
+    autoRan.current = true;
+    void runArrow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urls.clipUrl]);
+
+  const saveVerdict = async (v: TrialVerdict) => {
+    const next: TrialLabels = { ...labels, verdict: v };
+    setLabels(next);
+    setVerdict(v);
+    try {
+      await save({ data: { trialId: trial.id, labels: next, status: "labeled" } });
+      onDone({ ...trial, labels: next, lkTrack, status: "labeled" });
+    } catch {
+      toast.error("Could not save your answer — try again.");
     }
   };
 
@@ -693,19 +718,23 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
   return (
     <div className="space-y-5">
       <div className="surface-card rounded-2xl p-5">
-        <h2 className="text-lg font-semibold">2 · Watch both trackers side by side</h2>
+        <h2 className="text-lg font-semibold">2 · Watch the two trackers</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Left: the current arrow. Right: SAM 2's box. Run the arrow once, then do the labeling pass — the video pauses every 2 seconds and you mark what each tracker is on.
+          Press play on the left video — both sides play together. Left: the current arrow. Right: SAM 2's box. The arrow starts by itself; just watch.
+          {lkRunning ? " The arrow is warming up…" : ""}
         </p>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" onClick={runArrow} disabled={lkRunning || !urls.clipUrl}>
-            {lkRunning ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-            {lkTrack ? "Re-run arrow tracker" : "Run arrow tracker"}
-          </Button>
-          <Button size="sm" onClick={startLabeling} disabled={!lkTrack || labeling}>
-            <Flag className="size-4" />Start labeling pass
-          </Button>
-        </div>
+        <details className="mt-3 text-sm">
+          <summary className="cursor-pointer text-muted-foreground">Optional: detailed scoring (pauses every 2 seconds)</summary>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" onClick={runArrow} disabled={lkRunning || !urls.clipUrl}>
+              {lkRunning ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+              {lkTrack ? "Re-run arrow tracker" : "Run arrow tracker"}
+            </Button>
+            <Button size="sm" onClick={startLabeling} disabled={!lkTrack || labeling}>
+              <Flag className="size-4" />Start labeling pass
+            </Button>
+          </div>
+        </details>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -727,6 +756,29 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
             </svg>
           </div>
         </div>
+      </div>
+
+      <div className="surface-card rounded-2xl p-5">
+        <h2 className="text-lg font-semibold">3 · One question: did SAM 2 stay on you?</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Watch the right-hand video to the end, then tap one answer. That's the whole trial.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {([["stayed", "Stayed on me the whole time"], ["sometimes", "Lost me sometimes"], ["wrong", "Followed the wrong player"]] as const).map(([value, label]) => (
+            <Button key={value} size="sm" variant={verdict === value ? "default" : "outline"} onClick={() => void saveVerdict(value)}>
+              {label}
+            </Button>
+          ))}
+        </div>
+        {verdict && (
+          <p className="mt-3 text-sm text-turf">
+            Saved. {verdict === "stayed"
+              ? "That's a great sign — SAM 2 could take over the box work."
+              : verdict === "sometimes"
+                ? "Promising but not hands-free yet — a detailed scoring pass would tell us where it loses you."
+                : "Then it's not good enough for your footage yet — the box-and-review workflow stays the way to go."}
+          </p>
+        )}
       </div>
 
       {currentCheckpoint !== null && (
@@ -775,9 +827,10 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
         </div>
       )}
 
-      {metrics && (
+      {(metrics || verdict) && (
         <div className="surface-card rounded-2xl p-5">
-          <h2 className="text-lg font-semibold">3 · Results</h2>
+          <h2 className="text-lg font-semibold">Results</h2>
+          {metrics && (
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -818,11 +871,14 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
               </tbody>
             </table>
           </div>
-          <p className="mt-4 text-sm">
-            {passesBar(metrics)
-              ? "Verdict: SAM 2 clears the pass bar (85%+ on you, 20+ points ahead of the arrow, at most 1 switch at crossings). Worth building into the app."
-              : "Verdict: SAM 2 does not clear the pass bar on this clip. The current review-and-box workflow stays the way to go."}
-          </p>
+          )}
+          {metrics && (
+            <p className="mt-4 text-sm">
+              {passesBar(metrics)
+                ? "Verdict: SAM 2 clears the pass bar (85%+ on you, 20+ points ahead of the arrow, at most 1 switch at crossings). Worth building into the app."
+                : "Verdict: SAM 2 does not clear the pass bar on this clip. The current review-and-box workflow stays the way to go."}
+            </p>
+          )}
         </div>
       )}
     </div>
