@@ -33,6 +33,7 @@ import {
   type SamFrame,
   type TrialBox,
   type TrialLabels,
+  type TrialVerdict,
 } from "@/lib/sam-trial";
 import type { PlayerTracker } from "@/lib/player-tracker";
 

@@ -27,6 +27,9 @@ export type LkSample = { time: number; x: number; y: number; w: number; h: numbe
 
 export type CheckpointLabel = "on_me" | "wrong_player" | "lost";
 
+/** The one-question verdict: did SAM 2 stay on the user? */
+export type TrialVerdict = "stayed" | "sometimes" | "wrong";
+
 export type TrialLabels = {
   /** Keyed by checkpoint time (seconds, stringified). */
   checkpoints: Record<string, { sam?: CheckpointLabel; lk?: CheckpointLabel }>;
@@ -34,6 +37,8 @@ export type TrialLabels = {
   crossings: number[];
   /** How many boxes the user had to redraw per tracker. */
   corrections: { sam: number; lk: number };
+  /** Simple overall answer — the easy path instead of per-checkpoint labeling. */
+  verdict?: TrialVerdict;
 };
 
 export const MAX_CLIP_SECONDS = 30;
