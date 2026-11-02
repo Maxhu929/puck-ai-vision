@@ -1,6 +1,6 @@
 import { describe, test } from "node:test";
 import { strict as assert } from "node:assert";
-import { boxCheckpoints, hasVerifiedIdentity, isVerifiedTime, marksSchema, nextCrossedCheckpoint, shiftsSchema, type IdentificationEvidence } from "./player-identification";
+import { boxCheckpoints, hasVerifiedIdentity, isVerifiedTime, marksSchema, nextCrossedCheckpoint, unboxedCheckpointAt, shiftsSchema, type IdentificationEvidence } from "./player-identification";
 const evidence: IdentificationEvidence = { confidence: "high", observedClues: ["Red #17 inside the marked box at 01:00"], uncertainty: "", verifiedIntervals: [{ start: 60, end: 90 }] };
 describe("Target player safeguards", () => {
   test("missing identity confirmation never passes", () => assert.equal(hasVerifiedIdentity(undefined, evidence), false));
@@ -24,6 +24,8 @@ describe("Playback pausing at unboxed checkpoints", () => {
   const cps = boxCheckpoints([{ start: 0, end: 25 }], [{ time: 0 }]);
   test("pauses when playhead crosses an unboxed checkpoint", () => assert.equal(nextCrossedCheckpoint(cps, 9.8, 10.2)?.time, 10));
   test("an already boxed checkpoint never pauses", () => assert.equal(nextCrossedCheckpoint(cps, -0.5, 0.5), undefined));
+  test("pressing play while sitting on an unboxed checkpoint still stops for a box", () => assert.equal(unboxedCheckpointAt(cps, 10.2)?.time, 10));
+  test("pressing play away from a checkpoint never stops", () => assert.equal(unboxedCheckpointAt(cps, 12), undefined));
   test("scrubbing backwards never pauses", () => assert.equal(nextCrossedCheckpoint(cps, 20, 10), undefined));
   test("the earliest missed checkpoint wins when two are crossed at once", () => assert.equal(nextCrossedCheckpoint(cps, 9, 21)?.time, 10));
   test("nothing pauses after the last checkpoint", () => assert.equal(nextCrossedCheckpoint(cps, 20.5, 24.9), undefined));

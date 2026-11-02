@@ -3,7 +3,7 @@ import { Scan, Undo2, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { type PlayerMark } from "@/lib/analysis.functions";
-import { boxCheckpoints, nextCrossedCheckpoint, BOX_INTERVAL_SECONDS } from "@/lib/player-identification";
+import { boxCheckpoints, nextCrossedCheckpoint, unboxedCheckpointAt, BOX_INTERVAL_SECONDS } from "@/lib/player-identification";
 import { PlayerTrackingArrow } from "@/components/PlayerTrackingArrow";
 import { containsTime, type ReviewSegment } from "@/lib/video-review";
 
@@ -66,31 +66,52 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
     };
   }, [videoRef]);
 
-  /** Playback stops itself at every checkpoint that still needs a box, so a moment is never scrolled past. */
+  /** Latest render state for the long-lived playback listener, so re-renders never reset the crossing detector. */
+  const live = useRef({ checkpoints: checkpointsFor(marks), boxOn, beginBox: (_t: number) => {} });
+  const skipped = useRef<number | null>(null);
+  live.current.checkpoints = checkpointsFor(marks);
+  live.current.boxOn = boxOn;
+
+  /** Playback stops itself at every checkpoint that still needs a box, so a moment is never scrolled past.
+   *  While a box is being drawn, playback is held at that moment until the user draws it or skips it. */
   useEffect(() => {
     const v = videoRef.current;
-    if (!v || boxOn) return;
-    const checkpoints = checkpointsFor(marks);
-    if (!checkpoints.some((c) => !c.covered)) return;
+    if (!v) return;
     let from = v.currentTime;
-    const onSeeked = () => { from = v.currentTime; };
-    const onTime = () => {
-      const to = v.currentTime;
-      const hit = nextCrossedCheckpoint(checkpoints, from, to);
-      from = to;
-      if (!hit || v.paused || v.seeking) return;
+    const stopFor = (t: number) => {
       v.pause();
       setGuided(true);
-      beginBox(hit.time);
-      toast.info(`Paused at ${fmt(hit.time)} — box yourself here`);
+      live.current.beginBox(t);
+      toast.info(`Paused at ${fmt(t)} — box yourself here`);
     };
+    const onSeeked = () => { from = v.currentTime; };
+    const onPlay = () => {
+      if (live.current.boxOn) {
+        v.pause();
+        toast.info("Draw a box around yourself first, or tap Skip.");
+        return;
+      }
+      const here = unboxedCheckpointAt(live.current.checkpoints, v.currentTime);
+      if (here && skipped.current !== here.time) { stopFor(here.time); return; }
+      from = v.currentTime;
+    };
+    const onTime = () => {
+      const to = v.currentTime;
+      if (live.current.boxOn) { if (!v.paused) v.pause(); from = to; return; }
+      const hit = nextCrossedCheckpoint(live.current.checkpoints, from, to);
+      from = to;
+      if (!hit || v.paused || v.seeking) return;
+      stopFor(hit.time);
+    };
+    v.addEventListener("play", onPlay);
     v.addEventListener("timeupdate", onTime);
     v.addEventListener("seeked", onSeeked);
     return () => {
+      v.removeEventListener("play", onPlay);
       v.removeEventListener("timeupdate", onTime);
       v.removeEventListener("seeked", onSeeked);
     };
-  }, [videoRef, shifts, marks, boxOn, segments]);
+  }, [videoRef]);
 
   const beginBox = (t: number) => {
     const v = videoRef.current;
@@ -105,6 +126,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
     setBoxOn(true);
     v.scrollIntoView({ behavior: "smooth", block: "center" });
   };
+  live.current.beginBox = beginBox;
 
   useEffect(() => {
     if (markRequest) beginBox(markRequest.time);
@@ -157,6 +179,8 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
       setGuided(false);
     }
   };
+  /** Lets playback continue past this checkpoint without a box; it stays listed as missing. */
+  const skip = () => { skipped.current = anchorTime.current; cancel(); };
   const cancel = () => { setPlacingArrow(false); setGuided(false); setBoxOn(false); setDraft(null); origin.current = null; draftRef.current = null; };
   const save = async () => {
     setSaving(true);
@@ -188,7 +212,10 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
         {visible.map((m, i) => rectangle(m, String(i)))}
         {draft ? rectangle(draft, "draft") : null}
       </svg>
-      {boxOn && <div className="pointer-events-none absolute left-3 bottom-14 rounded-md bg-background/85 px-3 py-1 text-xs font-medium">{placingArrow ? "Select player for arrow" : "Box player"} · {fmt(anchorTime.current)}</div>}
+      {boxOn && <div className="absolute left-3 bottom-14 flex items-center gap-2 rounded-md bg-background/85 px-3 py-1 text-xs font-medium">
+        <span>{placingArrow ? "Select player for arrow" : "Draw a box around yourself"} · {fmt(anchorTime.current)}</span>
+        <button type="button" onClick={skip} className="rounded px-1.5 py-0.5 text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">Skip</button>
+      </div>}
     </div>
     {!simple && <div className="space-y-3 border-b border-border py-3">
       <div className="flex flex-wrap items-center gap-2">
