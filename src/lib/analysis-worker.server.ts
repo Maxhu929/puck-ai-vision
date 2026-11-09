@@ -2,6 +2,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { identityDetailsSchema, shiftsSchema, marksSchema } from "./player-identification";
 import { getTask, analyzeVideo } from "@/lib/twelvelabs.server";
+import { analyzeVideoWithGemini } from "@/lib/gemini-video.server";
 import { approvedWindows, reviewSegmentsSchema, canProcessReview } from "./video-review";
 import { coachingWindows, samReviewSchema } from "./sam-review";
 
@@ -26,8 +27,18 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
   }
 
   try {
+    const useGemini = !row.tl_task_id && !!row.highlighted_path;
     let videoId = row.tl_video_id as string | null;
-    if (!videoId) {
+    if (useGemini) {
+      if (row.status === "analyzing") {
+        const ageMs = Date.now() - new Date(row.updated_at ?? row.created_at).getTime();
+        if (ageMs < 10 * 60 * 1000) return { row, error: null };
+      }
+      // Claim the row so a parallel poll/cron doesn't analyze twice.
+      const { data: claimed } = await supabaseAdmin.from("video_analyses").update({ status: "analyzing" })
+        .eq("id", row.id).eq("updated_at", row.updated_at).eq("review_approved", true).select("id");
+      if (!claimed?.length) return { row, error: null };
+    } else if (!videoId) {
       const task = await getTask(row.tl_task_id as string);
       if (task.status === "failed") {
         const { data: failed } = await supabaseAdmin
@@ -68,8 +79,13 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
     ]
       .filter(Boolean)
       .join(", ");
-    const analysis = await analyzeVideo(
-      videoId,
+    let videoUrl = "";
+    if (useGemini) {
+      const { data: signed } = await supabaseAdmin.storage.from("videos").createSignedUrl(String(row.highlighted_path), 60 * 60);
+      if (!signed?.signedUrl) throw new Error("Couldn't find the reviewed copy. Make it again and resend.");
+      videoUrl = signed.signedUrl;
+    }
+    const args = [
       row.focus_areas ?? [],
       row.tl_index_id ?? undefined,
       identity || undefined,
@@ -78,7 +94,8 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
       identityDetailsSchema.parse(row.identity_details ?? {}),
       row.highlighted === true,
       windows,
-    );
+    ] as const;
+    const analysis = useGemini ? await analyzeVideoWithGemini(videoUrl, ...args) : await analyzeVideo(videoId as string, ...args);
     const { data: done, error: updateError } = await supabaseAdmin
       .from("video_analyses")
       .update({
