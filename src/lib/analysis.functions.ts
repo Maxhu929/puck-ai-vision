@@ -202,7 +202,6 @@ export const sendHighlightedCopy = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { ensureIndex, createIndexingTaskFromUrl } = await import("@/lib/twelvelabs.server");
     const { data: row } = await supabaseAdmin.from("video_analyses").select("status").eq("id", data.id).maybeSingle();
     if (!row) throw new Error("Clip not found");
     if (row.status === "analyzing") throw new Error("This clip is being analyzed. Wait for it to finish first.");
@@ -226,11 +225,9 @@ export const sendHighlightedCopy = createServerFn({ method: "POST" })
     if (!snapshot) throw new Error("Clip not found");
     const { data: signed, error } = await supabaseAdmin.storage.from("videos").createSignedUrl(data.path, 60 * 60 * 6);
     if (error || !signed) throw new Error("Couldn't find the highlighted copy. Try again.");
-    const indexId = await ensureIndex();
-    const taskId = await createIndexingTaskFromUrl(indexId, signed.signedUrl);
     const { error: saveError } = await supabaseAdmin.from("video_analyses").update({
       highlighted_path: data.path, highlighted: true, review_approved: true,
-      tl_index_id: indexId, tl_task_id: taskId, tl_video_id: null, status: "indexing", error_message: null,
+      tl_index_id: null, tl_task_id: null, tl_video_id: null, status: "pending", error_message: null,
       overall_grade: null, player_identified: null, identification_evidence: {}, notes: [], categories: [], metrics: {},
     }).eq("id", data.id).eq("updated_at", snapshot.updated_at).select("id").single();
     if (saveError) throw new Error("Couldn't save. Try again.");
