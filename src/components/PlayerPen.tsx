@@ -132,13 +132,40 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
     if (markRequest) beginBox(markRequest.time);
   }, [markRequest]);
 
-  const point = (e: React.PointerEvent<SVGSVGElement>): [number, number] => {
-    const r = e.currentTarget.getBoundingClientRect();
-    return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))];
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const pointFrom = (clientX: number, clientY: number): [number, number] => {
+    const el = svgRef.current;
+    if (!el) return [0, 0];
+    const r = el.getBoundingClientRect();
+    return [Math.min(1, Math.max(0, (clientX - r.left) / r.width)), Math.min(1, Math.max(0, (clientY - r.top) / r.height))];
   };
-  const finish = (e: React.PointerEvent<SVGSVGElement>) => {
+  /* Touch browsers (especially iOS) drop pointer-capture moves on SVGs, so the drag is tracked on window instead. */
+  useEffect(() => {
+    if (!dragging) return;
+    const move = (e: PointerEvent) => {
+      if (!origin.current) return;
+      e.preventDefault();
+      const [x1, y1] = origin.current, [x2, y2] = pointFrom(e.clientX, e.clientY);
+      const next = { time: anchorTime.current, x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };
+      draftRef.current = next;
+      setDraft(next);
+    };
+    const up = (e: PointerEvent) => { setDragging(false); finishAt(e.clientX, e.clientY); };
+    /* A cancelled touch (scroll gesture, system interrupt) clears only the draft — box mode stays on. */
+    const cancelDrag = () => { setDragging(false); origin.current = null; draftRef.current = null; setDraft(null); };
+    window.addEventListener("pointermove", move, { passive: false });
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancelDrag);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancelDrag);
+    };
+  }, [dragging]);
+  const finishAt = (clientX: number, clientY: number) => {
     if (!origin.current) return;
-    const [x2, y2] = point(e);
+    const [x2, y2] = pointFrom(clientX, clientY);
     const [x1, y1] = origin.current;
     const m = { time: anchorTime.current, x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };
     origin.current = null;
@@ -196,19 +223,10 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
     <div ref={boxRef} className="relative">
       {children}
       {!simple && <PlayerTrackingArrow videoRef={videoRef} frame={frame} request={trackingRequest} onPlace={() => { setGuided(false); setPlacingArrow(true); beginBox(videoRef.current?.currentTime ?? 0); }} />}
-      <svg aria-label="Player bounding box overlay" viewBox="0 0 100 100" preserveAspectRatio="none"
+      <svg ref={svgRef} aria-label="Player bounding box overlay" viewBox="0 0 100 100" preserveAspectRatio="none"
         style={{ left: `${frame.left}%`, top: `${frame.top}%`, width: `${frame.width}%`, height: `${frame.height}%` }}
-        className={`absolute ${boxOn ? "cursor-crosshair touch-none" : "pointer-events-none"}`}
-        onPointerDown={(e) => { if (!boxOn) return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); origin.current = point(e); }}
-        onPointerMove={(e) => {
-          if (!origin.current) return;
-          const [x1, y1] = origin.current, [x2, y2] = point(e);
-          const next = { time: anchorTime.current, x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };
-          draftRef.current = next;
-          setDraft(next);
-        }}
-        onPointerUp={finish}
-        onPointerCancel={cancel}>
+        className={`absolute z-10 select-none ${boxOn ? "cursor-crosshair touch-none" : "pointer-events-none"}`}
+        onPointerDown={(e) => { if (!boxOn) return; e.preventDefault(); origin.current = pointFrom(e.clientX, e.clientY); setDragging(true); }}>
         {visible.map((m, i) => rectangle(m, String(i)))}
         {draft ? rectangle(draft, "draft") : null}
       </svg>
