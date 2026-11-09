@@ -52,7 +52,7 @@ export function drawMarker(ctx: CanvasRenderingContext2D, box: HighlightBox, wid
 }
 
 /** Re-encode the clip with the marker drawn into every frame where highlightAt allows it. */
-export async function renderHighlightedClip(url: string, marks: HighlightBox[], shifts: Shift[], onProgress?: (f: number) => void, approved?: Shift[]): Promise<File> {
+export async function renderHighlightedClip(url: string, marks: HighlightBox[], shifts: Shift[], onProgress?: (f: number) => void, approved?: Shift[], trackedBox?: (time: number) => HighlightBox | null): Promise<File> {
   const mb = await import("mediabunny");
   const input = new mb.Input({ source: new mb.UrlSource(url), formats: mb.ALL_FORMATS });
   const track = await input.getPrimaryVideoTrack();
@@ -71,7 +71,7 @@ export async function renderHighlightedClip(url: string, marks: HighlightBox[], 
       process: (sample) => {
         const window = approved?.find(w => sample.timestamp >= w.start && sample.timestamp < w.end);
         const box = approved
-          ? window ? highlightAt(marks.filter(m => m.time >= window.start && m.time < window.end), [window], sample.timestamp) : null
+          ? window ? trackedBox ? trackedBox(sample.timestamp) : highlightAt(marks.filter(m => m.time >= window.start && m.time < window.end), [window], sample.timestamp) : null
           : highlightAt(marks, shifts, sample.timestamp);
         // Omit all unapproved imagery, retaining the original clock for report links.
         if (approved && !box) ctx.clearRect(0, 0, width, height);
