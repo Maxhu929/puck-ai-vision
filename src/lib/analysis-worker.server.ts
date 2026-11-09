@@ -81,7 +81,7 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
       .join(", ");
     let videoUrl = "";
     if (useGemini) {
-      const { data: signed } = await supabaseAdmin.storage.from("videos").createSignedUrl(row.highlighted_path, 60 * 60);
+      const { data: signed } = await supabaseAdmin.storage.from("videos").createSignedUrl(String(row.highlighted_path), 60 * 60);
       if (!signed?.signedUrl) throw new Error("Couldn't find the reviewed copy. Make it again and resend.");
       videoUrl = signed.signedUrl;
     }
