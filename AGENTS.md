@@ -20,3 +20,4 @@
 - Uploads remain awaiting_review until a manually reviewed copy is approved; save actions never enqueue coaching, because identity must be reviewed first.
 - Shared video-review helpers intersect verified ranges with shifts and marker support, subtract all excluded ranges, and preserve original timestamps with blank frames outside eligibility; this keeps unverified imagery out of coaching while retaining game context.
 - Changing boxes, shifts, clues or review ranges invalidates approval in a database trigger; evidence-backed visible high-confidence notes are validated server-side to prevent stale approvals and unsupported criticism.
+- Snapshot owner-accessible SAM 2 frames separately from manual anchors when approving a tracked copy; frame-local tracking only narrows manual eligibility, and changing the snapshot invalidates approval so model positions never become identity evidence.

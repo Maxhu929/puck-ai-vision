@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { identityDetailsSchema, shiftsSchema, marksSchema } from "./player-identification";
 import { getTask, analyzeVideo } from "@/lib/twelvelabs.server";
 import { approvedWindows, reviewSegmentsSchema, canProcessReview } from "./video-review";
+import { coachingWindows, samReviewSchema } from "./sam-review";
 
 /**
  * Advance one analysis: indexing -> analyzing -> ready/failed. Shared by the
@@ -17,7 +18,8 @@ export async function advanceAnalysis(id: string): Promise<{ row: any | null; er
     if (row.status !== "awaiting_review") await supabaseAdmin.from("video_analyses").update({ status: "awaiting_review" }).eq("id", id);
     return { row: { ...row, status: "awaiting_review" }, error: null };
   }
-  const windows = approvedWindows(reviewSegmentsSchema.parse(row.review_segments), shiftsSchema.parse(row.shifts ?? []), marksSchema.parse(row.marks ?? []));
+  const samReview = row.sam_review ? samReviewSchema.parse(row.sam_review) : null;
+  const windows = coachingWindows(reviewSegmentsSchema.parse(row.review_segments), shiftsSchema.parse(row.shifts ?? []), marksSchema.parse(row.marks ?? []), samReview);
   if (!canProcessReview(row.review_approved === true, row.highlighted === true, windows)) {
     await supabaseAdmin.from("video_analyses").update({ status: "awaiting_review", review_approved: false }).eq("id", id);
     return { row: { ...row, status: "awaiting_review" }, error: null };

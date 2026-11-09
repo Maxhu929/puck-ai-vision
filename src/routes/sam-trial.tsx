@@ -42,7 +42,7 @@ import type { PlayerTracker } from "@/lib/player-tracker";
 
 const title = "SAM 2 Tracking Trial (Experimental) | Hockey Video Analyzer";
 const description =
-  "Side-by-side test of SAM 2 player tracking against the current arrow tracker on one short clip. Trial data never affects grading.";
+  "Compare SAM 2 and optical-flow tracking on hockey crossings, then manually review a tracked copy before coaching analysis.";
 
 export const Route = createFileRoute("/sam-trial")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -96,7 +96,7 @@ function SamTrialPage() {
   };
 
   return (
-    <PageShell title="Tracking trial" subtitle="Experimental — SAM 2 vs. the current arrow on one short clip. Nothing here changes grading.">
+    <PageShell title="Tracking trial" subtitle="SAM 2 vs. the current arrow · Coaching requires a separately approved copy.">
       {!analysisId ? (
         <ClipPicker onPick={setAnalysisId} />
       ) : (
@@ -679,6 +679,8 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
     const v = leftRef.current;
     if (!v) return;
     setLabeling(true);
+    const first = checkpoints.find(t => !labels.checkpoints[String(t)]?.sam || !labels.checkpoints[String(t)]?.lk);
+    if (first !== undefined) { v.pause(); v.currentTime = first - trial.clipStart; setCurrentCheckpoint(first); return; }
     v.currentTime = 0;
     void v.play();
   };
@@ -691,9 +693,10 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
       const to = v.currentTime;
       const absFrom = trial.clipStart + from, absTo = trial.clipStart + to;
       from = to;
-      const hit = checkpoints.find((t) => t > absFrom - 0.001 && t <= absTo && !labels.checkpoints[String(t)]?.sam);
+      const hit = checkpoints.find((t) => t > absFrom - 0.001 && t <= absTo && (!labels.checkpoints[String(t)]?.sam || !labels.checkpoints[String(t)]?.lk));
       if (hit !== undefined && !v.seeking) {
         v.pause();
+        v.currentTime = hit - trial.clipStart;
         setCurrentCheckpoint(hit);
       }
     };
@@ -728,7 +731,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
     }
     await save({ data: { trialId: trial.id, labels: next } });
     const v = leftRef.current;
-    if (v) void v.play();
+    if (v) { v.pause(); v.currentTime = remaining[0] - trial.clipStart; setCurrentCheckpoint(remaining[0]); }
   };
 
   const samBox = (() => {
@@ -810,6 +813,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
           </p>
         )}
       </div>
+      <Button asChild variant="outline"><Link to="/feedback" search={{ id: trial.analysisId }}>Review SAM 2 copy for coaching</Link></Button>
 
       {currentCheckpoint !== null && (
         <div className="surface-card space-y-4 rounded-2xl p-5">
