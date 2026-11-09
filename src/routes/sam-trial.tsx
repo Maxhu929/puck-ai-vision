@@ -663,14 +663,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
     }
   };
 
-  // The arrow runs by itself once the clip is ready — one less thing to click.
-  const autoRan = useRef(false);
-  useEffect(() => {
-    if (autoRan.current || !urls.clipUrl || lkTrack || lkRunning) return;
-    autoRan.current = true;
-    void runArrow();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urls.clipUrl]);
+  // Start playback from a user gesture; browsers may block automatic playback.
 
   const saveVerdict = async (v: TrialVerdict) => {
     const next: TrialLabels = { ...labels, verdict: v };
@@ -763,7 +756,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
       <div className="surface-card rounded-2xl p-5">
         <h2 className="text-lg font-semibold">2 · Watch the two trackers</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Press play on the left video — the right side shows the exact same frame, so they can't drift apart. Left: the current arrow. Right: SAM 2's box. The arrow starts by itself; just watch.
+          Left: the current arrow. Right: SAM 2's box.
           {lkRunning ? " The arrow is warming up…" : ""}
         </p>
         <details className="mt-3 text-sm">
@@ -773,7 +766,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
               {lkRunning ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
               {lkTrack ? "Re-run arrow tracker" : "Run arrow tracker"}
             </Button>
-            <Button size="sm" onClick={startLabeling} disabled={!lkTrack || labeling}>
+            <Button size="sm" onClick={startLabeling} disabled={labeling || lkRunning}>
               <Flag className="size-4" />Start labeling pass
             </Button>
           </div>
