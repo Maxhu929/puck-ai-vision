@@ -614,13 +614,19 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
     try {
       const { PlayerTracker } = await import("@/lib/player-tracker");
       video.pause();
-      video.currentTime = 0;
-      await new Promise<void>((resolve) => { video.onseeked = () => resolve(); });
+      if (video.readyState < 2) await new Promise<void>((resolve, reject) => {
+        video.addEventListener("loadeddata", () => resolve(), { once: true });
+        video.addEventListener("error", () => reject(new Error("Could not play the test clip.")), { once: true });
+      });
+      if (video.currentTime > 0.001) await new Promise<void>((resolve) => {
+        video.addEventListener("seeked", () => resolve(), { once: true });
+        video.currentTime = 0;
+      });
       const tracker: PlayerTracker = new PlayerTracker(video, trial.startBox);
       const samples: LkSample[] = [];
       let lostAt: number | null = null;
       let last = 0;
-      await new Promise<void>((resolve) => {
+      await new Promise<void>((resolve, reject) => {
         const tick = (_now: number, meta: VideoFrameCallbackMetadata) => {
           if (meta.mediaTime === last) { video.requestVideoFrameCallback(tick); return; }
           last = meta.mediaTime;
@@ -640,7 +646,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
         };
         video.onended = () => resolve();
         video.requestVideoFrameCallback(tick);
-        void video.play();
+        void video.play().catch(reject);
       });
       video.pause();
       setLkTrack(samples);
