@@ -262,6 +262,7 @@ export type Database = {
           position: string | null
           review_approved: boolean
           review_segments: Json
+          sam_review: Json | null
           shifts: Json
           shifts_confirmed: boolean
           status: string
@@ -298,6 +299,7 @@ export type Database = {
           position?: string | null
           review_approved?: boolean
           review_segments?: Json
+          sam_review?: Json | null
           shifts?: Json
           shifts_confirmed?: boolean
           status?: string
@@ -334,6 +336,7 @@ export type Database = {
           position?: string | null
           review_approved?: boolean
           review_segments?: Json
+          sam_review?: Json | null
           shifts?: Json
           shifts_confirmed?: boolean
           status?: string
