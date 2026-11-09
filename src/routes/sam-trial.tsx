@@ -615,8 +615,12 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
       const { PlayerTracker } = await import("@/lib/player-tracker");
       video.pause();
       if (video.readyState < 2) await new Promise<void>((resolve, reject) => {
-        video.addEventListener("loadeddata", () => resolve(), { once: true });
-        video.addEventListener("error", () => reject(new Error("Could not play the test clip.")), { once: true });
+        const started = Date.now();
+        const timer = setInterval(() => {
+          if (video.readyState >= 2) { clearInterval(timer); resolve(); }
+          else if (video.error || Date.now() - started > 15000) { clearInterval(timer); reject(new Error("Could not play the test clip.")); }
+        }, 100);
+        video.load();
       });
       if (video.currentTime > 0.001) await new Promise<void>((resolve) => {
         video.addEventListener("seeked", () => resolve(), { once: true });
