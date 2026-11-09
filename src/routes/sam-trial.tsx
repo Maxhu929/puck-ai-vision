@@ -42,7 +42,7 @@ import type { PlayerTracker } from "@/lib/player-tracker";
 
 const title = "SAM 2 Tracking Trial (Experimental) | Hockey Video Analyzer";
 const description =
-  "Side-by-side test of SAM 2 player tracking against the current arrow tracker on one short clip. Trial data never affects grading.";
+  "Compare SAM 2 and optical-flow tracking on hockey crossings, then manually review a tracked copy before coaching analysis.";
 
 export const Route = createFileRoute("/sam-trial")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -96,7 +96,7 @@ function SamTrialPage() {
   };
 
   return (
-    <PageShell title="Tracking trial" subtitle="Experimental — SAM 2 vs. the current arrow on one short clip. Nothing here changes grading.">
+    <PageShell title="Tracking trial" subtitle="SAM 2 vs. the current arrow · Coaching requires a separately approved copy.">
       {!analysisId ? (
         <ClipPicker onPick={setAnalysisId} />
       ) : (
@@ -614,13 +614,23 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
     try {
       const { PlayerTracker } = await import("@/lib/player-tracker");
       video.pause();
-      video.currentTime = 0;
-      await new Promise<void>((resolve) => { video.onseeked = () => resolve(); });
+      if (video.readyState < 2) await new Promise<void>((resolve, reject) => {
+        const started = Date.now();
+        const timer = setInterval(() => {
+          if (video.readyState >= 2) { clearInterval(timer); resolve(); }
+          else if (video.error || Date.now() - started > 15000) { clearInterval(timer); reject(new Error("Could not play the test clip.")); }
+        }, 100);
+        video.load();
+      });
+      if (video.currentTime > 0.001) await new Promise<void>((resolve) => {
+        video.addEventListener("seeked", () => resolve(), { once: true });
+        video.currentTime = 0;
+      });
       const tracker: PlayerTracker = new PlayerTracker(video, trial.startBox);
       const samples: LkSample[] = [];
       let lostAt: number | null = null;
       let last = 0;
-      await new Promise<void>((resolve) => {
+      await new Promise<void>((resolve, reject) => {
         const tick = (_now: number, meta: VideoFrameCallbackMetadata) => {
           if (meta.mediaTime === last) { video.requestVideoFrameCallback(tick); return; }
           last = meta.mediaTime;
@@ -640,7 +650,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
         };
         video.onended = () => resolve();
         video.requestVideoFrameCallback(tick);
-        void video.play();
+        void video.play().catch(reject);
       });
       video.pause();
       setLkTrack(samples);
@@ -653,14 +663,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
     }
   };
 
-  // The arrow runs by itself once the clip is ready — one less thing to click.
-  const autoRan = useRef(false);
-  useEffect(() => {
-    if (autoRan.current || !urls.clipUrl || lkTrack || lkRunning) return;
-    autoRan.current = true;
-    void runArrow();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urls.clipUrl]);
+  // Start playback from a user gesture; browsers may block automatic playback.
 
   const saveVerdict = async (v: TrialVerdict) => {
     const next: TrialLabels = { ...labels, verdict: v };
@@ -679,6 +682,8 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
     const v = leftRef.current;
     if (!v) return;
     setLabeling(true);
+    const first = checkpoints.find(t => !labels.checkpoints[String(t)]?.sam || !labels.checkpoints[String(t)]?.lk);
+    if (first !== undefined) { v.pause(); v.currentTime = first - trial.clipStart; setCurrentCheckpoint(first); return; }
     v.currentTime = 0;
     void v.play();
   };
@@ -691,9 +696,10 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
       const to = v.currentTime;
       const absFrom = trial.clipStart + from, absTo = trial.clipStart + to;
       from = to;
-      const hit = checkpoints.find((t) => t > absFrom - 0.001 && t <= absTo && !labels.checkpoints[String(t)]?.sam);
+      const hit = checkpoints.find((t) => t > absFrom - 0.001 && t <= absTo && (!labels.checkpoints[String(t)]?.sam || !labels.checkpoints[String(t)]?.lk));
       if (hit !== undefined && !v.seeking) {
         v.pause();
+        v.currentTime = hit - trial.clipStart;
         setCurrentCheckpoint(hit);
       }
     };
@@ -728,7 +734,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
     }
     await save({ data: { trialId: trial.id, labels: next } });
     const v = leftRef.current;
-    if (v) void v.play();
+    if (v) { v.pause(); v.currentTime = remaining[0] - trial.clipStart; setCurrentCheckpoint(remaining[0]); }
   };
 
   const samBox = (() => {
@@ -750,7 +756,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
       <div className="surface-card rounded-2xl p-5">
         <h2 className="text-lg font-semibold">2 · Watch the two trackers</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Press play on the left video — the right side shows the exact same frame, so they can't drift apart. Left: the current arrow. Right: SAM 2's box. The arrow starts by itself; just watch.
+          Left: the current arrow. Right: SAM 2's box.
           {lkRunning ? " The arrow is warming up…" : ""}
         </p>
         <details className="mt-3 text-sm">
@@ -760,7 +766,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
               {lkRunning ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
               {lkTrack ? "Re-run arrow tracker" : "Run arrow tracker"}
             </Button>
-            <Button size="sm" onClick={startLabeling} disabled={!lkTrack || labeling}>
+            <Button size="sm" onClick={startLabeling} disabled={labeling || lkRunning}>
               <Flag className="size-4" />Start labeling pass
             </Button>
           </div>
@@ -810,6 +816,7 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
           </p>
         )}
       </div>
+      <Button asChild variant="outline"><Link to="/feedback" search={{ id: trial.analysisId }}>Review SAM 2 copy for coaching</Link></Button>
 
       {currentCheckpoint !== null && (
         <div className="surface-card space-y-4 rounded-2xl p-5">

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   boxToPixels,
   MAX_CLIP_SECONDS,
@@ -70,9 +71,10 @@ async function signedUrl(supabaseAdmin: any, path: string, seconds: number): Pro
 
 export const listSamTrials = createServerFn({ method: "GET" })
   .inputValidator((input) => z.object({ analysisId: z.string().uuid() }).parse(input))
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: rows, error } = await supabaseAdmin
+    const { data: rows, error } = await context.supabase
       .from("sam_trials")
       .select("*")
       .eq("analysis_id", data.analysisId)
@@ -96,7 +98,8 @@ export const createSamTrial = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
     if (data.clipEnd - data.clipStart < 1 || data.clipEnd - data.clipStart > MAX_CLIP_SECONDS) {
       throw new Error(`The test clip must be 1–${MAX_CLIP_SECONDS} seconds long.`);
     }
@@ -107,9 +110,10 @@ export const createSamTrial = createServerFn({ method: "POST" })
       .eq("id", data.analysisId)
       .maybeSingle();
     if (!analysis) throw new Error("Clip not found");
-    const { data: row, error } = await supabaseAdmin
+    const { data: row, error } = await context.supabase
       .from("sam_trials")
       .insert({
+        user_id: context.userId,
         analysis_id: data.analysisId,
         clip_start: data.clipStart,
         clip_end: data.clipEnd,
@@ -128,12 +132,15 @@ export const createSamTrial = createServerFn({ method: "POST" })
 /** Signed upload URL so the browser can PUT the cut clip straight to storage. */
 export const getTrialUploadUrl = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ trialId: z.string().uuid() }).parse(input))
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: owned } = await context.supabase.from("sam_trials").select("id").eq("id", data.trialId).single();
+    if (!owned) throw new Error("Trial not found");
     const path = `sam-trial/${data.trialId}.mp4`;
     const { data: signed, error } = await supabaseAdmin.storage.from("videos").createSignedUploadUrl(path);
     if (error || !signed) throw new Error(error?.message ?? "Could not create upload URL");
-    await supabaseAdmin.from("sam_trials").update({ clip_path: path, updated_at: new Date().toISOString() }).eq("id", data.trialId);
+    await context.supabase.from("sam_trials").update({ clip_path: path, updated_at: new Date().toISOString() }).eq("id", data.trialId);
     const base = process.env["SUPABASE_URL"]!.replace(/\/$/, "");
     const uploadUrl = signed.signedUrl.startsWith("http") ? signed.signedUrl : `${base}/storage/v1${signed.signedUrl}`;
     return { path: signed.path, token: signed.token, uploadUrl };
@@ -142,11 +149,12 @@ export const getTrialUploadUrl = createServerFn({ method: "POST" })
 /** Send the cut clip + starting box to fal's SAM 2 queue. The key never leaves the server. */
 export const submitSamTrial = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ trialId: z.string().uuid() }).parse(input))
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
     const falKey = process.env["FAL_KEY"];
     if (!falKey) throw new Error("The tracking service key isn't configured yet.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: trial } = await supabaseAdmin.from("sam_trials").select("*").eq("id", data.trialId).maybeSingle();
+    const { data: trial } = await context.supabase.from("sam_trials").select("*").eq("id", data.trialId).maybeSingle();
     if (!trial?.clip_path) throw new Error("The cut clip hasn't been uploaded yet.");
 
     const videoUrl = await signedUrl(supabaseAdmin, trial.clip_path, 60 * 60 * 2);
@@ -164,10 +172,10 @@ export const submitSamTrial = createServerFn({ method: "POST" })
     const body = (await response.json().catch(() => ({}))) as any;
     if (!response.ok || !body.request_id) {
       const detail = typeof body.detail === "string" ? body.detail : "The tracking service rejected the request.";
-      await supabaseAdmin.from("sam_trials").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", data.trialId);
+      await context.supabase.from("sam_trials").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", data.trialId);
       return { error: detail };
     }
-    await supabaseAdmin
+    await context.supabase
       .from("sam_trials")
       .update({ fal_request_id: body.request_id, status: "submitted", updated_at: new Date().toISOString() })
       .eq("id", data.trialId);
@@ -177,11 +185,12 @@ export const submitSamTrial = createServerFn({ method: "POST" })
 /** Check fal's queue; on completion, copy the mask video into private storage before fal's link expires. */
 export const pollSamTrial = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ trialId: z.string().uuid() }).parse(input))
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
     const falKey = process.env["FAL_KEY"];
     if (!falKey) throw new Error("The tracking service key isn't configured yet.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: trial } = await supabaseAdmin.from("sam_trials").select("*").eq("id", data.trialId).maybeSingle();
+    const { data: trial } = await context.supabase.from("sam_trials").select("*").eq("id", data.trialId).maybeSingle();
     if (!trial) throw new Error("Trial not found");
     if (trial.status !== "submitted" || !trial.fal_request_id) return { status: trial.status };
 
@@ -193,7 +202,7 @@ export const pollSamTrial = createServerFn({ method: "POST" })
     const falStatus = statusBody.status as string | undefined;
 
     if (falStatus === "FAILED") {
-      await supabaseAdmin.from("sam_trials").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", data.trialId);
+      await context.supabase.from("sam_trials").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", data.trialId);
       return { status: "failed" };
     }
     if (falStatus !== "COMPLETED") return { status: "submitted" };
@@ -202,7 +211,7 @@ export const pollSamTrial = createServerFn({ method: "POST" })
     const result = (await resultRes.json().catch(() => ({}))) as any;
     const maskUrl = result?.video?.url as string | undefined;
     if (!maskUrl) {
-      await supabaseAdmin.from("sam_trials").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", data.trialId);
+      await context.supabase.from("sam_trials").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", data.trialId);
       return { status: "failed" };
     }
     const mask = await fetch(maskUrl);
@@ -213,7 +222,7 @@ export const pollSamTrial = createServerFn({ method: "POST" })
       .from("videos")
       .upload(outputPath, bytes, { contentType: "video/mp4", upsert: true });
     if (uploadError) return { status: "submitted" };
-    await supabaseAdmin
+    await context.supabase
       .from("sam_trials")
       .update({ status: "completed", output_path: outputPath, updated_at: new Date().toISOString() })
       .eq("id", data.trialId);
@@ -223,9 +232,10 @@ export const pollSamTrial = createServerFn({ method: "POST" })
 /** Temporary playback links for the cut clip and the SAM 2 mask video. */
 export const getSamTrialUrls = createServerFn({ method: "GET" })
   .inputValidator((input) => z.object({ trialId: z.string().uuid() }).parse(input))
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: trial } = await supabaseAdmin.from("sam_trials").select("clip_path, output_path").eq("id", data.trialId).maybeSingle();
+    const { data: trial } = await context.supabase.from("sam_trials").select("clip_path, output_path").eq("id", data.trialId).maybeSingle();
     if (!trial) return { clipUrl: null as string | null, maskUrl: null as string | null };
     const clipUrl = trial.clip_path ? await signedUrl(supabaseAdmin, trial.clip_path, 60 * 60 * 4) : null;
     const maskUrl = trial.output_path ? await signedUrl(supabaseAdmin, trial.output_path, 60 * 60 * 4) : null;
@@ -258,7 +268,8 @@ export const saveSamTrialData = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const changes: Record<string, any> = { updated_at: new Date().toISOString() };
     if (data.samTrack !== undefined) changes.sam_track = data.samTrack;
@@ -266,7 +277,7 @@ export const saveSamTrialData = createServerFn({ method: "POST" })
     if (data.labels !== undefined) changes.labels = data.labels;
     if (data.metrics !== undefined) changes.metrics = data.metrics;
     if (data.status !== undefined) changes.status = data.status;
-    const { error } = await supabaseAdmin.from("sam_trials").update(changes as any).eq("id", data.trialId);
+    const { error } = await context.supabase.from("sam_trials").update(changes as any).eq("id", data.trialId);
     if (error) throw new Error("Could not save the trial data. Try again.");
     return { ok: true };
   });
