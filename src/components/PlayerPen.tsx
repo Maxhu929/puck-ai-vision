@@ -223,19 +223,10 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
     <div ref={boxRef} className="relative">
       {children}
       {!simple && <PlayerTrackingArrow videoRef={videoRef} frame={frame} request={trackingRequest} onPlace={() => { setGuided(false); setPlacingArrow(true); beginBox(videoRef.current?.currentTime ?? 0); }} />}
-      <svg aria-label="Player bounding box overlay" viewBox="0 0 100 100" preserveAspectRatio="none"
+      <svg ref={svgRef} aria-label="Player bounding box overlay" viewBox="0 0 100 100" preserveAspectRatio="none"
         style={{ left: `${frame.left}%`, top: `${frame.top}%`, width: `${frame.width}%`, height: `${frame.height}%` }}
-        className={`absolute ${boxOn ? "cursor-crosshair touch-none" : "pointer-events-none"}`}
-        onPointerDown={(e) => { if (!boxOn) return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); origin.current = point(e); }}
-        onPointerMove={(e) => {
-          if (!origin.current) return;
-          const [x1, y1] = origin.current, [x2, y2] = point(e);
-          const next = { time: anchorTime.current, x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };
-          draftRef.current = next;
-          setDraft(next);
-        }}
-        onPointerUp={finish}
-        onPointerCancel={cancel}>
+        className={`absolute z-10 select-none ${boxOn ? "cursor-crosshair touch-none" : "pointer-events-none"}`}
+        onPointerDown={(e) => { if (!boxOn) return; e.preventDefault(); origin.current = pointFrom(e.clientX, e.clientY); setDragging(true); }}>
         {visible.map((m, i) => rectangle(m, String(i)))}
         {draft ? rectangle(draft, "draft") : null}
       </svg>
