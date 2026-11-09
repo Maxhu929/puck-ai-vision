@@ -14,3 +14,5 @@
 - [ ] Trial SAM 2 on real footage — step 0 passed (fal ran the 25 s clip, mask video gives per-frame boxes, frame 0 matched the user's box). Trial page built (/sam-trial, linked from Feedback) with tests passing and a clean build. Full in-browser run is blocked in the test browser by the .mov codec issue; needs a run in the user's real browser, then the labeling pass.
 - [ ] Add Roboflow player detection before selected-player SAM 2 tracking, preserving the existing review and grading workflow — requires a verified hosted detector and Roboflow access.
 - [x] Compare BoT-SORT with the proposed Roboflow–SAM 2 combination; add a consecutive-frame multi-player tracking alternative to the pending plan without changing the app.
+- [ ] Test SAM 2 on crowded hockey footage with overlapping players and report measured results.
+- [ ] Connect explicitly reviewed SAM 2 positions to the existing approved-copy Twelve Labs workflow without replacing manual anchors.
