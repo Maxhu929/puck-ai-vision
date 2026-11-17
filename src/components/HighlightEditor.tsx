@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Sparkles, Send, X, Crosshair, SkipForward } from "lucide-react";
 import { BoxDrawer } from "@/components/BoxDrawer";
+import { Link } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,12 @@ export function HighlightEditor({ analysisId, videoUrl, marks: savedMarks, shift
   const [renderedKey, setRenderedKey] = useState<string | null>(null);
   const [watched, setWatched] = useState(false);
   const [tracks, setTracks] = useState<SamReview[]>([]);
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setSignedIn(!!session));
+    return () => sub.subscription.unsubscribe();
+  }, []);
   const [fixes, setFixes] = useState<PlayerMark[]>([]);
   const marks = fixes.length ? [...savedMarks, ...fixes] : savedMarks;
   const [lostAt, setLostAt] = useState<number[]>([]);
@@ -94,6 +102,10 @@ export function HighlightEditor({ analysisId, videoUrl, marks: savedMarks, shift
       <h2 className="text-lg font-semibold">Approve footage for coaching</h2>
       <p className="text-sm text-muted-foreground">{windows.reduce((sum, w) => sum + w.end - w.start, 0).toFixed(1)} seconds eligible · {selected ? "SAM 2 highlights — approval required" : "Manual box highlights"}</p>
     </div>
+    {signedIn === false && <div className="rounded-md border border-gold/50 bg-gold/10 p-3 text-sm">
+      <p><strong>Sign in to send this clip to the AI.</strong> You can make and check the copy, but sending needs your account.</p>
+      <Link to="/auth" search={{ next: `/feedback?id=${analysisId}` }} className="mt-2 inline-block font-medium text-ice underline">Sign in</Link>
+    </div>}
     {tracks.length > 0 && phase === "idle" && <div className="space-y-2">
       <label htmlFor="coaching-track" className="text-sm font-medium">Player marker</label>
       <select id="coaching-track" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" value={selected?.trialId ?? "manual"} onChange={e => setSelected(tracks.find(t => t.trialId === e.target.value) ?? null)}>
@@ -132,7 +144,7 @@ export function HighlightEditor({ analysisId, videoUrl, marks: savedMarks, shift
       {stale && <p className="text-sm text-destructive">Your boxes changed. Make the copy again before sending.</p>}
       <p className="text-sm text-muted-foreground">Excluded footage is blank; the original video clock is preserved.</p>
       <div className="flex flex-wrap gap-2">
-        <Button onClick={approve} disabled={phase === "sending" || stale || !watched || pending.length > 0}>{phase === "sending" ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}Looks right — send to AI</Button>
+        <Button onClick={approve} disabled={phase === "sending" || stale || !watched || pending.length > 0 || signedIn === false}>{phase === "sending" ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}Looks right — send to AI</Button>
         <Button variant="ghost" onClick={discard} disabled={phase === "sending"}><X className="size-4" />Discard</Button>
       </div>
     </div>}
