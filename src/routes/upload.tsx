@@ -192,7 +192,7 @@ function UploadPage() {
 
   return (
     <PageShell title="Upload" subtitle="Upload footage, review your player, then approve coaching analysis.">
-      <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+      <div className="grid gap-8 [&>*]:min-w-0 lg:grid-cols-[1.4fr_1fr]">
         <div className="space-y-6">
           <label
             htmlFor="video"
