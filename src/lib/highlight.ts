@@ -51,8 +51,46 @@ export function drawMarker(ctx: CanvasRenderingContext2D, box: HighlightBox, wid
   ctx.restore();
 }
 
+/** Coarse 4x4x4 RGB histogram of the centre of a box region, normalized to sum 1. */
+export function colorHistogram(data: Uint8ClampedArray): Float32Array {
+  const bins = new Float32Array(64);
+  let n = 0;
+  for (let i = 0; i < data.length; i += 4) { bins[(data[i] >> 6) * 16 + (data[i + 1] >> 6) * 4 + (data[i + 2] >> 6)]++; n++; }
+  if (n) for (let i = 0; i < 64; i++) bins[i] /= n;
+  return bins;
+}
+
+/** Bhattacharyya coefficient: 1 = same colours, 0 = nothing in common. */
+export function histogramSimilarity(a: Float32Array, b: Float32Array): number {
+  let s = 0;
+  for (let i = 0; i < a.length; i++) s += Math.sqrt(a[i] * b[i]);
+  return s;
+}
+
+/** Below this similarity to the user's own box, the marker probably isn't on the player anymore. */
+export const LOST_SIMILARITY = 0.6;
+/** How long the mismatch must last before we ask for a rebox (ignores brief blur). */
+export const LOST_MIN_SECONDS = 0.4;
+
+/** Start times of every stretch where similarity stays under the threshold long enough. */
+export function lostStretches(samples: Array<{ time: number; similarity: number }>, threshold = LOST_SIMILARITY, minSeconds = LOST_MIN_SECONDS): number[] {
+  const out: number[] = [];
+  let start: number | null = null, last = 0;
+  const close = () => { if (start !== null && last - start >= minSeconds) out.push(start); start = null; };
+  for (const s of samples) {
+    if (s.similarity < threshold) { if (start === null) start = s.time; last = s.time; }
+    else close();
+  }
+  close();
+  return out;
+}
+
 /** Re-encode the clip with the marker drawn into every frame where highlightAt allows it. */
-export async function renderHighlightedClip(url: string, marks: HighlightBox[], shifts: Shift[], onProgress?: (f: number) => void, approved?: Shift[], trackedBox?: (time: number) => HighlightBox | null): Promise<File> {
+export async function renderHighlightedClip(url: string, marks: HighlightBox[], shifts: Shift[], onProgress?: (f: number) => void, approved?: Shift[], trackedBox?: (time: number) => HighlightBox | null): Promise<{ file: File; lostAt: number[] }> {
+  const samples: Array<{ time: number; similarity: number }> = [];
+  let reference: Float32Array | null = null;
+  let referenceTime = -Infinity;
+  const sortedMarks = [...marks].sort((a, b) => a.time - b.time);
   const mb = await import("mediabunny");
   const input = new mb.Input({ source: new mb.UrlSource(url), formats: mb.ALL_FORMATS });
   const track = await input.getPrimaryVideoTrack();
@@ -76,7 +114,17 @@ export async function renderHighlightedClip(url: string, marks: HighlightBox[], 
         // Omit all unapproved imagery, retaining the original clock for report links.
         if (approved && !box) ctx.clearRect(0, 0, width, height);
         else sample.draw(ctx, 0, 0, width, height);
-        if (box) drawMarker(ctx, box, width, height);
+        if (box) {
+          // Compare the colours inside the marker with the colours inside the user's own most recent box.
+          const bx = Math.max(0, Math.floor((box.x + box.w * 0.2) * width)), by = Math.max(0, Math.floor((box.y + box.h * 0.2) * height));
+          const bw = Math.max(1, Math.min(width - bx, Math.floor(box.w * 0.6 * width))), bh = Math.max(1, Math.min(height - by, Math.floor(box.h * 0.6 * height)));
+          const hist = colorHistogram(ctx.getImageData(bx, by, bw, bh).data);
+          const anchor = [...sortedMarks].reverse().find(m => m.time <= sample.timestamp + 0.05);
+          if (anchor && anchor.time > referenceTime && Math.abs(anchor.time - sample.timestamp) < 0.2) { reference = hist; referenceTime = anchor.time; }
+          if (!reference) { reference = hist; referenceTime = sample.timestamp; }
+          samples.push({ time: sample.timestamp, similarity: histogramSimilarity(hist, reference) });
+          drawMarker(ctx, box, width, height);
+        }
         return canvas;
       },
     },
@@ -88,5 +136,5 @@ export async function renderHighlightedClip(url: string, marks: HighlightBox[], 
   await conversion.execute();
   const buffer = output.target.buffer;
   if (!buffer) throw new Error("The highlighted copy came out empty.");
-  return new File([buffer], "highlighted.mp4", { type: "video/mp4" });
+  return { file: new File([buffer], "highlighted.mp4", { type: "video/mp4" }), lostAt: lostStretches(samples) };
 }
