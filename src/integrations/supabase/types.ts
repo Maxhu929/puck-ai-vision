@@ -153,6 +153,7 @@ export type Database = {
           lk_track: Json | null
           metrics: Json | null
           output_path: string | null
+          rebox_prompts: Json
           sam_track: Json | null
           start_box: Json
           status: string
@@ -174,6 +175,7 @@ export type Database = {
           lk_track?: Json | null
           metrics?: Json | null
           output_path?: string | null
+          rebox_prompts?: Json
           sam_track?: Json | null
           start_box: Json
           status?: string
@@ -195,6 +197,7 @@ export type Database = {
           lk_track?: Json | null
           metrics?: Json | null
           output_path?: string | null
+          rebox_prompts?: Json
           sam_track?: Json | null
           start_box?: Json
           status?: string

@@ -1,0 +1,1 @@
+ALTER TABLE public.sam_trials ADD COLUMN IF NOT EXISTS rebox_prompts jsonb NOT NULL DEFAULT '[]'::jsonb;

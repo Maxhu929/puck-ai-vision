@@ -18,6 +18,7 @@ import {
   pollSamTrial,
   saveSamTrialData,
   submitSamTrial,
+  rerunSamTrial,
   type SamTrialRecord,
 } from "@/lib/sam-trial.functions";
 import {
@@ -31,6 +32,8 @@ import {
   passesBar,
   MAX_CLIP_SECONDS,
   MIN_MASK_AREA,
+  lostRunStarts,
+  type TrialRebox,
   type CheckpointLabel,
   type LkSample,
   type SamFrame,
@@ -151,6 +154,7 @@ function SamTrialPage() {
           {(phase === "compare" || phase === "done") && trial && (
             <CompareStep
               trial={trial}
+              onRerun={(t) => { setTrial(t); setPhase("polling"); }}
               onDone={(t) => { setTrial(t); setPhase("done"); }}
             />
           )}
@@ -557,7 +561,7 @@ function ExtractStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
   );
 }
 
-function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: SamTrialRecord) => void }) {
+function CompareStep({ trial, onDone, onRerun }: { trial: SamTrialRecord; onDone: (t: SamTrialRecord) => void; onRerun: (t: SamTrialRecord) => void }) {
   const leftRef = useRef<HTMLVideoElement>(null);
   const leftContainer = useRef<HTMLDivElement>(null);
   const rightContainer = useRef<HTMLDivElement>(null);
@@ -575,6 +579,14 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
   const [currentCheckpoint, setCurrentCheckpoint] = useState<number | null>(null);
   const getUrls = useServerFn(getSamTrialUrls);
   const save = useServerFn(saveSamTrialData);
+  const rerun = useServerFn(rerunSamTrial);
+
+  // Reboxing: when SAM 2 loses the player, pause there and ask for a new box.
+  const [reboxes, setReboxes] = useState<TrialRebox[]>(trial.reboxes ?? []);
+  const [newReboxCount, setNewReboxCount] = useState(0);
+  const [reboxAt, setReboxAt] = useState<{ frame: number; reason: "lost" | "manual" } | null>(null);
+  const [handledLost, setHandledLost] = useState<Set<number>>(new Set());
+  const [rerunning, setRerunning] = useState(false);
 
   const clipLength = trial.clipEnd - trial.clipStart;
   const checkpoints = checkpointTimes(trial.clipStart, trial.clipEnd);
@@ -737,6 +749,66 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
     if (v) { v.pause(); v.currentTime = remaining[0] - trial.clipStart; setCurrentCheckpoint(remaining[0]); }
   };
 
+  const lostStarts = lostRunStarts(trial.samTrack ?? []);
+  const reboxRef = useRef({ reboxAt, handledLost, lostStarts, labeling });
+  reboxRef.current = { reboxAt, handledLost, lostStarts, labeling };
+  useEffect(() => {
+    const v = leftRef.current;
+    if (!v) return;
+    let from = v.currentTime;
+    const onTime = () => {
+      const to = v.currentTime;
+      const st = reboxRef.current;
+      const prev = from;
+      from = to;
+      if (st.labeling || v.seeking) return;
+      if (st.reboxAt) { if (!v.paused) v.pause(); return; }
+      const hit = st.lostStarts.find((f) => !st.handledLost.has(f) && f / trial.fps > prev - 0.001 && f / trial.fps <= to + 0.001);
+      if (hit === undefined) return;
+      v.pause();
+      v.currentTime = hit / trial.fps;
+      setReboxAt({ frame: hit, reason: "lost" });
+    };
+    const onPlay = () => { if (reboxRef.current.reboxAt) { v.pause(); toast.info("Draw a box around yourself first, or tap Skip."); } };
+    const onSeeked = () => { from = v.currentTime; };
+    v.addEventListener("timeupdate", onTime);
+    v.addEventListener("play", onPlay);
+    v.addEventListener("seeked", onSeeked);
+    return () => { v.removeEventListener("timeupdate", onTime); v.removeEventListener("play", onPlay); v.removeEventListener("seeked", onSeeked); };
+  }, [urls.clipUrl, trial.fps]);
+
+  const reboxHere = () => {
+    const v = leftRef.current;
+    if (!v) return;
+    v.pause();
+    setReboxAt({ frame: Math.round(v.currentTime * trial.fps), reason: "manual" });
+  };
+  const closeRebox = () => {
+    if (reboxAt?.reason === "lost") setHandledLost((h) => new Set(h).add(reboxAt.frame));
+    setReboxAt(null);
+  };
+  const addRebox = (box: TrialBox | null) => {
+    if (!box || !reboxAt) return;
+    setReboxes((r) => [...r.filter((x) => x.frame !== reboxAt.frame), { frame: reboxAt.frame, box }]);
+    setNewReboxCount((n) => n + 1);
+    closeRebox();
+    toast.success(`Rebox saved at ${fmt(trial.clipStart + reboxAt.frame / trial.fps)}. Press play to keep watching.`);
+  };
+  const runRerun = async () => {
+    if (!reboxes.length || rerunning) return;
+    setRerunning(true);
+    try {
+      const res = await rerun({ data: { trialId: trial.id, reboxes } });
+      if (res.error) { toast.error(res.error); return; }
+      toast.success("SAM 2 is re-tracking with your reboxes.");
+      onRerun({ ...trial, reboxes, samTrack: null, outputPath: null, labels: null, metrics: null, status: "submitted" });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not re-run SAM 2.");
+    } finally {
+      setRerunning(false);
+    }
+  };
+
   const samBox = (() => {
     if (!samTrack.length) return null;
     const s = nearestSample(samTrack, trial.clipStart + time, 1.5 / trial.fps);
@@ -779,8 +851,9 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
           <div ref={leftContainer} className="relative">
             <video ref={leftRef} crossOrigin="anonymous" src={urls.clipUrl ?? undefined} controls playsInline preload="auto" className="surface-card aspect-video w-full rounded-2xl bg-background" />
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute" style={{ left: `${leftFrame.left}%`, top: `${leftFrame.top}%`, width: `${leftFrame.width}%`, height: `${leftFrame.height}%` }}>
-              {lkBox && <rect x={lkBox.x * 100} y={lkBox.y * 100} width={lkBox.w * 100} height={lkBox.h * 100} fill="none" stroke="var(--color-gold)" strokeWidth={3} vectorEffect="non-scaling-stroke" />}
+              {lkBox && !reboxAt && <rect x={lkBox.x * 100} y={lkBox.y * 100} width={lkBox.w * 100} height={lkBox.h * 100} fill="none" stroke="var(--color-gold)" strokeWidth={3} vectorEffect="non-scaling-stroke" />}
             </svg>
+            {reboxAt && <BoxDrawer videoRef={leftRef} containerRef={leftContainer} active box={null} onBox={addRebox} />}
           </div>
         </div>
         <div>
@@ -793,6 +866,33 @@ function CompareStep({ trial, onDone }: { trial: SamTrialRecord; onDone: (t: Sam
           </div>
         </div>
       </div>
+
+      {reboxAt ? (
+        <div className="surface-card space-y-3 rounded-2xl border border-gold p-5">
+          <p className="font-medium">
+            {reboxAt.reason === "lost" ? `SAM 2 lost you at ${fmt(trial.clipStart + reboxAt.frame / trial.fps)}.` : `Rebox at ${fmt(trial.clipStart + reboxAt.frame / trial.fps)}.`}
+          </p>
+          <p className="text-sm text-muted-foreground">The video is paused. Drag a box around yourself on the left video, from helmet to skates.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={closeRebox}>{reboxAt.reason === "lost" ? "Skip — I'm not visible here" : "Cancel"}</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="surface-card flex flex-wrap items-center gap-3 rounded-2xl p-5">
+          <Button size="sm" variant="outline" onClick={reboxHere} disabled={!urls.clipUrl || labeling}>
+            <Scan className="size-4" />Box is off me — rebox here
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            {lostStarts.length ? `The video pauses by itself at the ${lostStarts.length} spot${lostStarts.length === 1 ? "" : "s"} where SAM 2 loses you.` : "SAM 2 never lost the box — use the button if it's on the wrong player."}
+          </span>
+          {reboxes.length > 0 && (
+            <Button size="sm" onClick={runRerun} disabled={rerunning} className="ml-auto">
+              {rerunning ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+              Re-run SAM 2 with {reboxes.length} rebox{reboxes.length === 1 ? "" : "es"}{newReboxCount ? ` (${newReboxCount} new)` : ""}
+            </Button>
+          )}
+        </div>
+      )}
 
       <div className="surface-card rounded-2xl p-5">
         <h2 className="text-lg font-semibold">3 · One question: did SAM 2 stay on you?</h2>

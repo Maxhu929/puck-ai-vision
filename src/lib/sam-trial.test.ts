@@ -178,3 +178,15 @@ describe("nearestSample", () => {
   test("finds the closest time", () => { assert.equal(nearestSample(s, 0.06)?.time, 0.067); assert.equal(nearestSample(s, 0.04)?.time, 0.033); });
   test("returns null when no sample is close (no stale box shown)", () => { assert.equal(nearestSample(s, 0.3), null); assert.equal(nearestSample([], 1), null); });
 });
+
+import { lostRunStarts, buildBoxPrompts } from "./sam-trial";
+describe("rebox helpers", () => {
+  const track = [false, false, true, true, true, false, true, false, true, true, true, true].map((lost, frame) => ({ frame, lost }));
+  test("pauses only where SAM 2 loses the player for 3+ frames", () => assert.deepEqual(lostRunStarts(track), [2, 8]));
+  test("sends the start box plus each rebox at its frame, sorted", () => {
+    const b = { x: 0.1, y: 0.1, w: 0.1, h: 0.2 };
+    const p = buildBoxPrompts(b, [{ frame: 300, box: { x: 0.5, y: 0.5, w: 0.1, h: 0.2 } }, { frame: 60, box: b }], 1000, 500);
+    assert.deepEqual(p.map((x) => x.frame_index), [0, 60, 300]);
+    assert.equal(p[2].x_min, 500);
+  });
+});

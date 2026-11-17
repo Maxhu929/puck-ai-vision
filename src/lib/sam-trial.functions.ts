@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
-  boxToPixels,
+  buildBoxPrompts,
+  type TrialRebox,
   MAX_CLIP_SECONDS,
   type TrialBox,
   type SamFrame,
@@ -30,6 +31,7 @@ export type SamTrialRecord = {
   lkTrack: LkSample[] | null;
   labels: TrialLabels | null;
   metrics: TrialMetrics | null;
+  reboxes: TrialRebox[];
   createdAt: string;
 };
 
@@ -51,6 +53,7 @@ function toRecord(row: any): SamTrialRecord {
     lkTrack: Array.isArray(row.lk_track) ? row.lk_track : null,
     labels: row.labels && typeof row.labels === "object" ? row.labels : null,
     metrics: row.metrics && typeof row.metrics === "object" ? row.metrics : null,
+    reboxes: Array.isArray(row.rebox_prompts) ? row.rebox_prompts : [],
     createdAt: row.created_at,
   };
 }
@@ -146,40 +149,75 @@ export const getTrialUploadUrl = createServerFn({ method: "POST" })
     return { path: signed.path, token: signed.token, uploadUrl };
   });
 
-/** Send the cut clip + starting box to fal's SAM 2 queue. The key never leaves the server. */
+/** Send the cut clip + starting box (and any reboxes) to fal's SAM 2 queue. The key never leaves the server. */
+async function sendToSam(context: any, trialId: string) {
+  const falKey = process.env["FAL_KEY"];
+  if (!falKey) throw new Error("The tracking service key isn't configured yet.");
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: trial } = await context.supabase.from("sam_trials").select("*").eq("id", trialId).maybeSingle();
+  if (!trial?.clip_path) throw new Error("The cut clip hasn't been uploaded yet.");
+
+  const videoUrl = await signedUrl(supabaseAdmin, trial.clip_path, 60 * 60 * 2);
+  if (!videoUrl) throw new Error("Could not create a temporary link for the test clip.");
+
+  const reboxes = Array.isArray(trial.rebox_prompts) ? (trial.rebox_prompts as TrialRebox[]) : [];
+  const response = await fetch("https://queue.fal.run/fal-ai/sam2/video", {
+    method: "POST",
+    headers: { Authorization: `Key ${falKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      video_url: videoUrl,
+      box_prompts: buildBoxPrompts(trial.start_box as TrialBox, reboxes, trial.width, trial.height),
+      boundingbox_zip: true,
+    }),
+  });
+  const body = (await response.json().catch(() => ({}))) as any;
+  if (!response.ok || !body.request_id) {
+    const detail = typeof body.detail === "string" ? body.detail : "The tracking service rejected the request.";
+    await context.supabase.from("sam_trials").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", trialId);
+    return { error: detail };
+  }
+  await context.supabase
+    .from("sam_trials")
+    .update({ fal_request_id: body.request_id, status: "submitted", updated_at: new Date().toISOString() })
+    .eq("id", trialId);
+  return { error: null as string | null };
+}
+
 export const submitSamTrial = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ trialId: z.string().uuid() }).parse(input))
   .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => sendToSam(context, data.trialId));
+
+/** Save the user's reboxes and run SAM 2 again on the same clip; the old track and scoring are cleared. */
+export const rerunSamTrial = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        trialId: z.string().uuid(),
+        reboxes: z.array(z.object({ frame: z.number().int().min(0).max(20000), box: boxSchema })).min(1).max(30),
+      })
+      .parse(input),
+  )
+  .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    const falKey = process.env["FAL_KEY"];
-    if (!falKey) throw new Error("The tracking service key isn't configured yet.");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: trial } = await context.supabase.from("sam_trials").select("*").eq("id", data.trialId).maybeSingle();
-    if (!trial?.clip_path) throw new Error("The cut clip hasn't been uploaded yet.");
-
-    const videoUrl = await signedUrl(supabaseAdmin, trial.clip_path, 60 * 60 * 2);
-    if (!videoUrl) throw new Error("Could not create a temporary link for the test clip.");
-
-    const response = await fetch("https://queue.fal.run/fal-ai/sam2/video", {
-      method: "POST",
-      headers: { Authorization: `Key ${falKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        video_url: videoUrl,
-        box_prompts: [boxToPixels(trial.start_box as TrialBox, trial.width, trial.height)],
-        boundingbox_zip: true,
-      }),
-    });
-    const body = (await response.json().catch(() => ({}))) as any;
-    if (!response.ok || !body.request_id) {
-      const detail = typeof body.detail === "string" ? body.detail : "The tracking service rejected the request.";
-      await context.supabase.from("sam_trials").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", data.trialId);
-      return { error: detail };
-    }
-    await context.supabase
+    const { data: trial } = await context.supabase.from("sam_trials").select("id, fps, clip_start, clip_end").eq("id", data.trialId).maybeSingle();
+    if (!trial) throw new Error("Trial not found");
+    const lastFrame = Math.ceil((trial.clip_end - trial.clip_start) * trial.fps);
+    if (data.reboxes.some((r) => r.frame > lastFrame)) throw new Error("A rebox is outside the test clip.");
+    const { error } = await context.supabase
       .from("sam_trials")
-      .update({ fal_request_id: body.request_id, status: "submitted", updated_at: new Date().toISOString() })
+      .update({
+        rebox_prompts: data.reboxes,
+        sam_track: null,
+        output_path: null,
+        labels: null,
+        metrics: null,
+        status: "draft",
+        updated_at: new Date().toISOString(),
+      } as any)
       .eq("id", data.trialId);
-    return { error: null as string | null };
+    if (error) throw new Error("Could not save your reboxes. Try again.");
+    return sendToSam(context, data.trialId);
   });
 
 /** Check fal's queue; on completion, copy the mask video into private storage before fal's link expires. */

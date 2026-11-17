@@ -179,3 +179,29 @@ export function emptyLabels(): TrialLabels {
 export function passesBar(m: TrialMetrics): boolean {
   return m.sam.coverage >= 0.85 && m.sam.coverage - m.lk.coverage >= 0.2 && (m.sam.crossing?.identitySwitches ?? 0) <= 1;
 }
+
+/** A user correction: "the player is here" on one frame of the cut clip. */
+export type TrialRebox = { frame: number; box: TrialBox };
+
+/** Shortest stretch of lost frames that triggers a rebox pause (avoids pausing on a 1-frame flicker). */
+export const MIN_LOST_RUN_FRAMES = 3;
+
+/** Clip-relative frames where SAM 2 starts losing the player for at least `minFrames` frames in a row. */
+export function lostRunStarts(track: Pick<SamFrame, "frame" | "lost">[], minFrames = MIN_LOST_RUN_FRAMES): number[] {
+  const starts: number[] = [];
+  let runStart = -1, runLength = 0;
+  const flush = () => { if (runLength >= minFrames) starts.push(runStart); runLength = 0; };
+  for (const f of track) {
+    if (f.lost) { if (runLength === 0) runStart = f.frame; runLength++; }
+    else flush();
+  }
+  flush();
+  return starts;
+}
+
+/** Box prompts for SAM 2: the starting box on frame 0 plus each rebox (one per frame, sorted, a frame-0 rebox replaces the start). */
+export function buildBoxPrompts(startBox: TrialBox, reboxes: TrialRebox[], width: number, height: number) {
+  const byFrame = new Map<number, TrialBox>([[0, startBox]]);
+  for (const r of reboxes) byFrame.set(Math.max(0, Math.round(r.frame)), r.box);
+  return [...byFrame.entries()].sort((a, b) => a[0] - b[0]).map(([frame, box]) => ({ ...boxToPixels(box, width, height), frame_index: frame }));
+}

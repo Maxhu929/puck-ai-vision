@@ -22,3 +22,4 @@
 - Changing boxes, shifts, clues or review ranges invalidates approval in a database trigger; evidence-backed visible high-confidence notes are validated server-side to prevent stale approvals and unsupported criticism.
 - Snapshot owner-accessible SAM 2 frames separately from manual anchors when approving a tracked copy; frame-local tracking only narrows manual eligibility, and changing the snapshot invalidates approval so model positions never become identity evidence.
 - Approved reviewed copies are graded by Gemini through Lovable AI (gemini-video.server.ts) using the shared prompt/parse safeguards in twelvelabs.server.ts; Twelve Labs code remains only for older indexed clips, since its key stopped working.
+- SAM 2 trial reboxes are stored per trial (frame + box) and sent as extra box prompts on a full re-run; they stay trial-only and never become identity anchors.

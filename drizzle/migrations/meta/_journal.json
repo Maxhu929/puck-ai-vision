@@ -85,6 +85,13 @@
       "when": 1794933936405,
       "tag": "0011_restrict_public_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794934299998,
+      "tag": "0012_sam_trial_reboxes",
+      "breakpoints": true
     }
   ]
 }
