@@ -66,7 +66,8 @@ export const listPlayerGames = createServerFn({ method: "GET" }).handler(async (
     .eq("slug", "you")
     .maybeSingle();
   if (!player) return { games: [] as GameRecord[] };
-  const { data } = await supabase
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
     .from("player_games")
     .select("game_label, grade, top_speed")
     .eq("player_id", (player as any).id)
@@ -84,8 +85,8 @@ export const listPlayerGames = createServerFn({ method: "GET" }).handler(async (
 export const getPlayerGames = createServerFn({ method: "GET" })
   .inputValidator((input) => z.object({ playerId: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
-    const supabase = await publicClient();
-    const { data: rows } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows } = await supabaseAdmin
       .from("player_games")
       .select("game_label, grade, top_speed")
       .eq("player_id", data.playerId)
