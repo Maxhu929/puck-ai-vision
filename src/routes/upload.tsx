@@ -285,36 +285,11 @@ function UploadPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="jersey">Your jersey number</Label>
-              <Input
-                id="jersey"
-                placeholder="17"
-                onChange={(e) => (meta.current.jerseyNumber = e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="jerseyColor">Jersey color</Label>
-              <Input
-                id="jerseyColor"
-                placeholder="Red"
-                onChange={(e) => (meta.current.jerseyColor = e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">Helps the AI spot you among both teams.</p>
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="position">Position</Label>
               <Input
                 id="position"
                 placeholder="Left wing"
                 onChange={(e) => (meta.current.position = e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="handedness">Shoots</Label>
-              <Input
-                id="handedness"
-                placeholder="Left or right"
-                onChange={(e) => (meta.current.handedness = e.target.value)}
               />
             </div>
             <div className="space-y-2">
