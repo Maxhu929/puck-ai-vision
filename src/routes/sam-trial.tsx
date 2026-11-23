@@ -43,7 +43,7 @@ import {
 } from "@/lib/sam-trial";
 import type { PlayerTracker } from "@/lib/player-tracker";
 
-const title = "SAM 2 Tracking Trial (Experimental) | Hockey Video Analyzer";
+const title = "SAM 2 Tracking Trial (Experimental) | HockeyMaxxing";
 const description =
   "Compare SAM 2 and optical-flow tracking on hockey crossings, then manually review a tracked copy before coaching analysis.";
 

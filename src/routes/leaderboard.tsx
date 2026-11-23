@@ -5,7 +5,7 @@ import { PageShell } from "@/components/AppNav";
 import { loginLeaderboard } from "@/lib/login-days.functions";
 
 const boardQuery = queryOptions({ queryKey: ["login-leaderboard"], queryFn: () => loginLeaderboard() });
-const title = "Login Streak Leaderboard | Hockey Video Analyzer";
+const title = "Login Streak Leaderboard | HockeyMaxxing";
 const description = "See who has shown up the most: players ranked by how many days they've logged on.";
 
 export const Route = createFileRoute("/leaderboard")({

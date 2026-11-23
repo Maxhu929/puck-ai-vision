@@ -18,7 +18,7 @@ import { HighlightEditor } from "@/components/HighlightEditor";
 import { VideoReview } from "@/components/VideoReview";
 import type { ReviewSegment } from "@/lib/video-review";
 
-const title = "AI Feedback & Shift Grades | Hockey Video Analyzer";
+const title = "AI Feedback & Shift Grades | HockeyMaxxing";
 const description =
   "Timestamped AI feedback on every hockey play with explanations, category ratings, and an overall shift grade.";
 

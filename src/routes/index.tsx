@@ -4,7 +4,7 @@ import heroImage from "@/assets/hockey-hero.jpg";
 import { AppNav } from "@/components/AppNav";
 import { recentSubmissions } from "@/lib/hockey-data";
 
-const title = "Hockey Video Analyzer — AI Game Film Breakdown";
+const title = "HockeyMaxxing — AI Game Film Breakdown";
 const description =
   "Upload hockey game footage and get AI feedback with timestamped notes, grades, and drill suggestions.";
 
@@ -53,7 +53,7 @@ function Index() {
         />
 
         <div className="mx-auto max-w-6xl px-5 pt-24 pb-16 text-center sm:pt-32">
-          <h1 className="text-5xl font-bold sm:text-7xl">Hockey Video Analyzer</h1>
+          <h1 className="text-5xl font-bold sm:text-7xl">HockeyMaxxing</h1>
           <p className="mt-5 text-lg text-muted-foreground">
             Play smarter, not harder — analyze every shift
           </p>

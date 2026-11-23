@@ -1,4 +1,4 @@
-# Hockey Video Analyzer
+# HockeyMaxxing
 
 > AI breakdown of hockey game film: upload footage, get timestamped feedback, grades, and drill suggestions.
 

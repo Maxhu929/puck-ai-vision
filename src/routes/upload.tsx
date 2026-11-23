@@ -14,7 +14,7 @@ import { identityDetailsSchema } from "@/lib/player-identification";
 import { compressVideo, shouldCompress } from "@/lib/video-compress";
 
 
-const title = "Upload Game Footage | Hockey Video Analyzer";
+const title = "Upload Game Footage | HockeyMaxxing";
 const description =
   "Drop in a shift, a period, or a full hockey game and let the AI break down every play with grades and timestamped notes.";
 

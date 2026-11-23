@@ -79,10 +79,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Hockey Video Analyzer" },
+      { title: "HockeyMaxxing" },
       { name: "description", content: "Review player footage and get evidence-based hockey coaching." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Hockey Video Analyzer" },
+      { property: "og:title", content: "HockeyMaxxing" },
       { property: "og:description", content: "Review player footage and get evidence-based hockey coaching." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

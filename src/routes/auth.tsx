@@ -6,8 +6,8 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 
-const title = "Sign in — Hockey Video Analyzer";
-const description = "Sign in to your Hockey Video Analyzer account to connect AI assistants and view your analyses.";
+const title = "Sign in — HockeyMaxxing";
+const description = "Sign in to your HockeyMaxxing account to connect AI assistants and view your analyses.";
 
 function safeNext(value: unknown): string | null {
   if (typeof value !== "string") return null;

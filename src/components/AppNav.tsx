@@ -34,7 +34,7 @@ export function AppNav() {
       <nav className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3">
         <Link to="/" className="flex items-center gap-2 font-display text-base font-bold tracking-tight">
           <Snowflake className="size-5 text-ice" />
-          <span className="text-gradient-ice">Hockey Video Analyzer</span>
+          <span className="text-gradient-ice">HockeyMaxxing</span>
         </Link>
         <ul className="flex flex-wrap items-center gap-1 text-sm">
           {links.map((l) => (

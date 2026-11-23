@@ -70,7 +70,7 @@ function Consent() {
     <main className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md rounded-xl border border-border bg-card p-6">
         <h1 className="text-xl font-semibold text-foreground">
-          Connect {clientName} to Hockey Video Analyzer
+          Connect {clientName} to HockeyMaxxing
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {clientName} will be able to call this app&apos;s enabled tools while you are signed in —
