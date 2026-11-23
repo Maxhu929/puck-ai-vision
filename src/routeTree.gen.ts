@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ChatRouteRouteImport } from './routes/chat/route'
-import { Route as CompareRouteImport } from './routes/compare'
 import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as GearRouteImport } from './routes/gear'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
@@ -45,11 +44,6 @@ const AuthRoute = AuthRouteImport.update({
 const ChatRouteRoute = ChatRouteRouteImport.update({
   id: '/chat',
   path: '/chat',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CompareRoute = CompareRouteImport.update({
-  id: '/compare',
-  path: '/compare',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FeedbackRoute = FeedbackRouteImport.update({
@@ -151,7 +145,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/chat': typeof ChatRouteRouteWithChildren
   '/auth': typeof AuthRoute
-  '/compare': typeof CompareRoute
   '/feedback': typeof FeedbackRoute
   '/gear': typeof GearRoute
   '/leaderboard': typeof LeaderboardRoute
@@ -174,7 +167,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/compare': typeof CompareRoute
   '/feedback': typeof FeedbackRoute
   '/gear': typeof GearRoute
   '/leaderboard': typeof LeaderboardRoute
@@ -199,7 +191,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/chat': typeof ChatRouteRouteWithChildren
   '/auth': typeof AuthRoute
-  '/compare': typeof CompareRoute
   '/feedback': typeof FeedbackRoute
   '/gear': typeof GearRoute
   '/leaderboard': typeof LeaderboardRoute
@@ -225,7 +216,6 @@ export interface FileRouteTypes {
     | '/'
     | '/chat'
     | '/auth'
-    | '/compare'
     | '/feedback'
     | '/gear'
     | '/leaderboard'
@@ -248,7 +238,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
-    | '/compare'
     | '/feedback'
     | '/gear'
     | '/leaderboard'
@@ -272,7 +261,6 @@ export interface FileRouteTypes {
     | '/'
     | '/chat'
     | '/auth'
-    | '/compare'
     | '/feedback'
     | '/gear'
     | '/leaderboard'
@@ -297,7 +285,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ChatRouteRoute: typeof ChatRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
-  CompareRoute: typeof CompareRoute
   FeedbackRoute: typeof FeedbackRoute
   GearRoute: typeof GearRoute
   LeaderboardRoute: typeof LeaderboardRoute
@@ -337,13 +324,6 @@ declare module '@tanstack/react-router' {
       path: '/chat'
       fullPath: '/chat'
       preLoaderRoute: typeof ChatRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/compare': {
-      id: '/compare'
-      path: '/compare'
-      fullPath: '/compare'
-      preLoaderRoute: typeof CompareRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/feedback': {
@@ -493,7 +473,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ChatRouteRoute: ChatRouteRouteWithChildren,
   AuthRoute: AuthRoute,
-  CompareRoute: CompareRoute,
   FeedbackRoute: FeedbackRoute,
   GearRoute: GearRoute,
   LeaderboardRoute: LeaderboardRoute,

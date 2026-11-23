@@ -46,7 +46,7 @@ async function publicClient() {
   });
 }
 
-/** All players ordered by AI grade — powers the leaderboard and compare pages. */
+/** All players ordered by AI grade — powers the leaderboard page. */
 export const listPlayers = createServerFn({ method: "GET" }).handler(async () => {
   const supabase = await publicClient();
   const { data, error } = await supabase

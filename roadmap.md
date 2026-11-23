@@ -17,3 +17,5 @@
 - [x] Test the available crowded hockey clip: 131/708 frames lost (4.37 seconds), and tracking disagrees with the user's 20-second anchor. Do not treat mask availability as correct-player coverage.
 - [x] Connect explicitly reviewed SAM 2 positions to the existing approved-copy Twelve Labs workflow without replacing manual anchors; real tracked-copy rendering verified, 31 tests passed.
 - [ ] Complete user-confirmed crossing labels and a real SAM 2 coaching submission — blocked by wrong-player tracking on the tested clip and required user approval; more crowded clips are needed to assess general reliability.
+- [x] Remove the Compare page: nav, home tile, sitemap, llms.txt and the page itself; /compare now 404s.
+- [ ] Decide a replacement way to compare players that works with short reviewed clips.

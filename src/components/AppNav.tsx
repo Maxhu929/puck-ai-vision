@@ -7,7 +7,6 @@ const links = [
   { to: "/", label: "Home" },
   { to: "/upload", label: "Upload" },
   { to: "/feedback", label: "Feedback" },
-  { to: "/compare", label: "Compare" },
   { to: "/statistics", label: "Statistics" },
   { to: "/leaderboard", label: "Leaderboard" },
   { to: "/nutrition", label: "Nutrition" },
