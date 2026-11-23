@@ -9,6 +9,7 @@ const links = [
   { to: "/feedback", label: "Feedback" },
   { to: "/statistics", label: "Statistics" },
   { to: "/leaderboard", label: "Leaderboard" },
+  { to: "/nhl-compare", label: "vs NHL" },
   { to: "/nutrition", label: "Nutrition" },
   { to: "/gear", label: "Gear" },
   { to: "/chat", label: "Chat" },

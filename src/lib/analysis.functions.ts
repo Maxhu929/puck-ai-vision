@@ -13,6 +13,9 @@ export type ClipMetrics = {
   puckTouches: number;
   movementNote: string;
   tendencyNote: string;
+  shotSpeedKph?: number | null;
+  shotTechniqueScore?: number | null;
+  shotTechniqueNote?: string | null;
 };
 
 export type AnalysisRecord = {

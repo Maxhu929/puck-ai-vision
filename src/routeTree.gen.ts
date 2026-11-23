@@ -16,6 +16,7 @@ import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as GearRouteImport } from './routes/gear'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as NhlCompareRouteImport } from './routes/nhl-compare'
 import { Route as NutritionRouteImport } from './routes/nutrition'
 import { Route as SamTrialRouteImport } from './routes/sam-trial'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
@@ -64,6 +65,11 @@ const LeaderboardRoute = LeaderboardRouteImport.update({
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NhlCompareRoute = NhlCompareRouteImport.update({
+  id: '/nhl-compare',
+  path: '/nhl-compare',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NutritionRoute = NutritionRouteImport.update({
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/gear': typeof GearRoute
   '/leaderboard': typeof LeaderboardRoute
   '/mcp': typeof McpRoute
+  '/nhl-compare': typeof NhlCompareRoute
   '/nutrition': typeof NutritionRoute
   '/sam-trial': typeof SamTrialRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/gear': typeof GearRoute
   '/leaderboard': typeof LeaderboardRoute
   '/mcp': typeof McpRoute
+  '/nhl-compare': typeof NhlCompareRoute
   '/nutrition': typeof NutritionRoute
   '/sam-trial': typeof SamTrialRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   '/gear': typeof GearRoute
   '/leaderboard': typeof LeaderboardRoute
   '/mcp': typeof McpRoute
+  '/nhl-compare': typeof NhlCompareRoute
   '/nutrition': typeof NutritionRoute
   '/sam-trial': typeof SamTrialRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -220,6 +229,7 @@ export interface FileRouteTypes {
     | '/gear'
     | '/leaderboard'
     | '/mcp'
+    | '/nhl-compare'
     | '/nutrition'
     | '/sam-trial'
     | '/sitemap.xml'
@@ -242,6 +252,7 @@ export interface FileRouteTypes {
     | '/gear'
     | '/leaderboard'
     | '/mcp'
+    | '/nhl-compare'
     | '/nutrition'
     | '/sam-trial'
     | '/sitemap.xml'
@@ -265,6 +276,7 @@ export interface FileRouteTypes {
     | '/gear'
     | '/leaderboard'
     | '/mcp'
+    | '/nhl-compare'
     | '/nutrition'
     | '/sam-trial'
     | '/sitemap.xml'
@@ -289,6 +301,7 @@ export interface RootRouteChildren {
   GearRoute: typeof GearRoute
   LeaderboardRoute: typeof LeaderboardRoute
   McpRoute: typeof McpRoute
+  NhlCompareRoute: typeof NhlCompareRoute
   NutritionRoute: typeof NutritionRoute
   SamTrialRoute: typeof SamTrialRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -352,6 +365,13 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nhl-compare': {
+      id: '/nhl-compare'
+      path: '/nhl-compare'
+      fullPath: '/nhl-compare'
+      preLoaderRoute: typeof NhlCompareRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/nutrition': {
@@ -477,6 +497,7 @@ const rootRouteChildren: RootRouteChildren = {
   GearRoute: GearRoute,
   LeaderboardRoute: LeaderboardRoute,
   McpRoute: McpRoute,
+  NhlCompareRoute: NhlCompareRoute,
   NutritionRoute: NutritionRoute,
   SamTrialRoute: SamTrialRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,

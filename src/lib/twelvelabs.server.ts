@@ -87,6 +87,11 @@ export type ClipMetrics = {
   puckTouches: number;
   movementNote: string;
   tendencyNote: string;
+  /** Hardest visible shot in km/h; null when the player took no shot. */
+  shotSpeedKph?: number | null;
+  /** 0-100 shot technique score; null when no shot. */
+  shotTechniqueScore?: number | null;
+  shotTechniqueNote?: string | null;
 };
 
 export type HockeyAnalysis = {
@@ -115,12 +120,15 @@ Return ONLY valid JSON (no markdown fences) matching exactly:
     "shifts": number,
     "puckTouches": number,
     "movementNote": "one sentence on how much and how hard the player moved",
-    "tendencyNote": "one sentence on habits such as how often they engaged with the puck"
+    "tendencyNote": "one sentence on habits such as how often they engaged with the puck",
+    "shotSpeedKph": number or null,
+    "shotTechniqueScore": 0-100 or null,
+    "shotTechniqueNote": "one sentence on shot motion (weight transfer, release, follow-through)" or null
   }
 }
 Include 5-10 notes with real timestamps taken from the footage, and exactly these categories:
 Skating, Puck Control, Shot Selection, Positioning, Hockey IQ.
-For metrics, give your best visual estimate for the tracked player (skating speeds in km/h, distance in meters, count the puck touches you can see). Never leave metrics out.`;
+For metrics, give your best visual estimate for the tracked player (skating speeds in km/h, distance in meters, count the puck touches you can see). Never leave metrics out. Only fill shotSpeedKph, shotTechniqueScore and shotTechniqueNote if the tracked player visibly shoots; otherwise set all three to null.`;
 
 
 export type AnalysisArgs = Parameters<typeof buildAnalysisPrompt>;
@@ -233,7 +241,19 @@ export function parseAnalysis(text: string, shifts?: Array<{ start: number; end:
           puckTouches: Number(parsed.metrics.puckTouches) || 0,
           movementNote: String(parsed.metrics.movementNote ?? ""),
           tendencyNote: String(parsed.metrics.tendencyNote ?? ""),
+          ...parseShot(parsed.metrics),
         }
       : null,
+  };
+}
+/** Shot fields stay null unless the model reports a real shot. */
+export function parseShot(m: Record<string, unknown>) {
+  const speed = Number(m["shotSpeedKph"]);
+  const score = Number(m["shotTechniqueScore"]);
+  if (!(speed > 0) && !(score > 0)) return { shotSpeedKph: null, shotTechniqueScore: null, shotTechniqueNote: null };
+  return {
+    shotSpeedKph: speed > 0 ? speed : null,
+    shotTechniqueScore: score > 0 ? Math.min(100, score) : null,
+    shotTechniqueNote: typeof m["shotTechniqueNote"] === "string" ? m["shotTechniqueNote"] : null,
   };
 }
