@@ -13,7 +13,6 @@ const links = [
   { to: "/nhl-compare", label: "vs NHL" },
   { to: "/nutrition", label: "Nutrition" },
   { to: "/gear", label: "Gear" },
-  { to: "/chat", label: "Chat" },
 ] as const;
 
 export function AppNav() {
