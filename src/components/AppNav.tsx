@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Snowflake } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { recordLoginDay } from "@/lib/login-days.functions";
 
 const links = [
   { to: "/", label: "Home" },
@@ -25,6 +26,10 @@ export function AppNav() {
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (email) recordLoginDay().catch(() => {});
+  }, [email]);
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">

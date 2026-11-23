@@ -88,7 +88,7 @@ function Index() {
         <div className="flex items-end justify-between gap-4">
           <h2 className="text-2xl font-bold">Recent submissions</h2>
           <Link to="/leaderboard" className="inline-flex items-center gap-2 text-sm text-ice hover:underline">
-            <Trophy className="size-4" /> Grade leaderboard
+            <Trophy className="size-4" /> Login leaderboard
           </Link>
         </div>
         <ul className="mt-5 divide-y divide-border overflow-hidden rounded-2xl surface-card">
