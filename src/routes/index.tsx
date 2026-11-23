@@ -6,7 +6,7 @@ import { recentSubmissions } from "@/lib/hockey-data";
 
 const title = "Hockey Video Analyzer — AI Game Film Breakdown";
 const description =
-  "Upload hockey game footage and get AI feedback, per-shift grades, shot heat maps, and advanced statistics.";
+  "Upload hockey game footage and get AI feedback, per-shift grades, personal bests, and clip-by-clip statistics.";
 
 export const Route = createFileRoute("/")({
   head: () => ({
