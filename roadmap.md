@@ -21,3 +21,4 @@
 - [ ] Decide a replacement way to compare players that works with short reviewed clips.
 
 - [x] Nutrition: simple page with pre/post-game food & drink and daily calories from goal, height, weight
+- [x] Require player reboxing every one second in logged shifts, remove checkpoint skipping, and test timing rules.

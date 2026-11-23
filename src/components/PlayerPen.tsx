@@ -68,12 +68,11 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
 
   /** Latest render state for the long-lived playback listener, so re-renders never reset the crossing detector. */
   const live = useRef({ checkpoints: checkpointsFor(marks), boxOn, beginBox: (_t: number) => {} });
-  const skipped = useRef<number | null>(null);
   live.current.checkpoints = checkpointsFor(marks);
   live.current.boxOn = boxOn;
 
   /** Playback stops itself at every checkpoint that still needs a box, so a moment is never scrolled past.
-   *  While a box is being drawn, playback is held at that moment until the user draws it or skips it. */
+   *  While a box is being drawn, playback is held at that moment until the user draws it. */
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
@@ -88,11 +87,11 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
     const onPlay = () => {
       if (live.current.boxOn) {
         v.pause();
-        toast.info("Draw a box around yourself first, or tap Skip.");
+        toast.info("Draw a box around yourself before continuing.");
         return;
       }
       const here = unboxedCheckpointAt(live.current.checkpoints, v.currentTime);
-      if (here && skipped.current !== here.time) { stopFor(here.time); return; }
+      if (here) { stopFor(here.time); return; }
       from = v.currentTime;
     };
     const onTime = () => {
@@ -206,8 +205,6 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
       setGuided(false);
     }
   };
-  /** Lets playback continue past this checkpoint without a box; it stays listed as missing. */
-  const skip = () => { skipped.current = anchorTime.current; cancel(); };
   const cancel = () => { setPlacingArrow(false); setGuided(false); setBoxOn(false); setDraft(null); origin.current = null; draftRef.current = null; };
   const save = async () => {
     setSaving(true);
@@ -216,7 +213,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
     } catch { toast.error("Couldn't save right now. Try again in a minute."); }
     finally { setSaving(false); }
   };
-  const visible = marks.filter((m) => Math.abs(m.time - time) < 1.5);
+  const visible = marks.filter((m) => Math.abs(m.time - time) <= 0.1);
   const rectangle = (m: PlayerMark, key: string) => <rect key={key} x={m.x * 100} y={m.y * 100} width={m.w * 100} height={m.h * 100} fill="none" stroke="var(--color-ice)" strokeWidth={3} vectorEffect="non-scaling-stroke" />;
 
   return <div className="space-y-3">
@@ -232,7 +229,6 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
       </svg>
       {boxOn && <div className="absolute left-3 bottom-14 flex items-center gap-2 rounded-md bg-background/85 px-3 py-1 text-xs font-medium">
         <span>{placingArrow ? "Select player for arrow" : "Draw a box around yourself"} · {fmt(anchorTime.current)}</span>
-        <button type="button" onClick={skip} className="rounded px-1.5 py-0.5 text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">Skip</button>
       </div>}
     </div>
     {!simple && <div className="space-y-3 border-b border-border py-3">
@@ -248,7 +244,7 @@ export function PlayerPen({ analysisId, initial, videoRef, children, shifts, seg
         const missing = checkpoints.filter((c) => !c.covered);
         return <div className="space-y-2 rounded-md border border-border p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm"><span className="font-medium">{checkpoints.length - missing.length} of {checkpoints.length} boxes</span> <span className="text-muted-foreground">· box yourself every {BOX_INTERVAL_SECONDS} seconds while you're on the ice so the AI never has to follow you far.</span></p>
+            <p className="text-sm"><span className="font-medium">{checkpoints.length - missing.length} of {checkpoints.length} boxes</span> <span className="text-muted-foreground">· box yourself every {BOX_INTERVAL_SECONDS} second while you're on the ice.</span></p>
             <Button size="sm" disabled={saving || !missing.length} onClick={() => { setGuided(true); beginBox(missing[0].time); }}>
               <Scan className="size-4" />{missing.length ? `Box the ${missing.length} missing` : "All boxed"}
             </Button>

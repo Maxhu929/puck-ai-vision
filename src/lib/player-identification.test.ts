@@ -14,19 +14,20 @@ describe("Target player safeguards", () => {
   test("shift end is off ice", () => assert.equal(isVerifiedTime("01:30", evidence), false));
   test("boxes cannot extend outside the frame", () => assert.equal(marksSchema.safeParse([{ time: 60, x: .9, y: .1, w: .2, h: .2 }]).success, false));
   test("overlapping shifts are rejected", () => assert.equal(shiftsSchema.safeParse([{ start: 1, end: 10 }, { start: 5, end: 15 }]).success, false));
-  test("a 68 second shift needs a box every 10 seconds", () => assert.deepEqual(boxCheckpoints([{ start: 0, end: 68 }], []).map(c => c.time), [0, 10, 20, 30, 40, 50, 60]));
-  test("a box within 3 seconds covers a checkpoint", () => assert.deepEqual(boxCheckpoints([{ start: 0, end: 25 }], [{ time: 0 }, { time: 12.5 }]).map(c => c.covered), [true, true, false]));
-  test("a box 4 seconds away does not cover a checkpoint", () => assert.equal(boxCheckpoints([{ start: 0, end: 25 }], [{ time: 14 }])[1].covered, false));
+  test("a new box is required every 1 second", () => assert.deepEqual(boxCheckpoints([{ start: 0, end: 5 }], []).map(c => c.time), [0, 1, 2, 3, 4]));
+  test("one box cannot cover adjacent one-second checkpoints", () => assert.deepEqual(boxCheckpoints([{ start: 0, end: 3 }], [{ time: 1 }]).map(c => c.covered), [false, true, false]));
+  test("a box near its checkpoint covers only that moment", () => assert.deepEqual(boxCheckpoints([{ start: 0, end: 3 }], [{ time: 1.05 }]).map(c => c.covered), [false, true, false]));
+  test("fractional shifts keep one-second spacing through the last second", () => assert.deepEqual(boxCheckpoints([{ start: 0.514, end: 3.55 }], []).map(c => c.time), [0.514, 1.514, 2.514, 3.514]));
   test("a very short shift still needs a start box", () => assert.deepEqual(boxCheckpoints([{ start: 5, end: 6 }], []).map(c => c.time), [5]));
 });
 
 describe("Playback pausing at unboxed checkpoints", () => {
   const cps = boxCheckpoints([{ start: 0, end: 25 }], [{ time: 0 }]);
-  test("pauses when playhead crosses an unboxed checkpoint", () => assert.equal(nextCrossedCheckpoint(cps, 9.8, 10.2)?.time, 10));
+  test("pauses after one second when the next box is missing", () => assert.equal(nextCrossedCheckpoint(cps, 0.8, 1.2)?.time, 1));
   test("an already boxed checkpoint never pauses", () => assert.equal(nextCrossedCheckpoint(cps, -0.5, 0.5), undefined));
   test("pressing play while sitting on an unboxed checkpoint still stops for a box", () => assert.equal(unboxedCheckpointAt(cps, 10.2)?.time, 10));
-  test("pressing play away from a checkpoint never stops", () => assert.equal(unboxedCheckpointAt(cps, 12), undefined));
+  test("pressing play away from a checkpoint never stops", () => assert.equal(unboxedCheckpointAt(cps, 12.5), undefined));
   test("scrubbing backwards never pauses", () => assert.equal(nextCrossedCheckpoint(cps, 20, 10), undefined));
   test("the earliest missed checkpoint wins when two are crossed at once", () => assert.equal(nextCrossedCheckpoint(cps, 9, 21)?.time, 10));
-  test("nothing pauses after the last checkpoint", () => assert.equal(nextCrossedCheckpoint(cps, 20.5, 24.9), undefined));
+  test("nothing pauses after the last checkpoint", () => assert.equal(nextCrossedCheckpoint(cps, 24.5, 24.9), undefined));
 });
