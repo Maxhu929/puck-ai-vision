@@ -20,4 +20,4 @@
 - [x] Remove the Compare page: nav, home tile, sitemap, llms.txt and the page itself; /compare now 404s.
 - [ ] Decide a replacement way to compare players that works with short reviewed clips.
 
-- [ ] Nutrition: simple page with pre/post-game food & drink and daily calories from goal, height, weight
+- [x] Nutrition: simple page with pre/post-game food & drink and daily calories from goal, height, weight
