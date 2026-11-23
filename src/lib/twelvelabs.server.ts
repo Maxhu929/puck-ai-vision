@@ -92,6 +92,10 @@ export type ClipMetrics = {
   /** 0-100 shot technique score; null when no shot. */
   shotTechniqueScore?: number | null;
   shotTechniqueNote?: string | null;
+  /** Observed shooting style; null when no shot. */
+  shotStyle?: "quick" | "hybrid" | "power" | null;
+  /** Observed skating posture; null when unclear. */
+  stance?: "upright" | "medium" | "crouched" | null;
 };
 
 export type HockeyAnalysis = {
@@ -123,12 +127,14 @@ Return ONLY valid JSON (no markdown fences) matching exactly:
     "tendencyNote": "one sentence on habits such as how often they engaged with the puck",
     "shotSpeedKph": number or null,
     "shotTechniqueScore": 0-100 or null,
-    "shotTechniqueNote": "one sentence on shot motion (weight transfer, release, follow-through)" or null
+    "shotTechniqueNote": "one sentence on shot motion (weight transfer, release, follow-through)" or null,
+    "shotStyle": "quick|hybrid|power" or null,
+    "stance": "upright|medium|crouched" or null
   }
 }
 Include 5-10 notes with real timestamps taken from the footage, and exactly these categories:
 Skating, Puck Control, Shot Selection, Positioning, Hockey IQ.
-For metrics, give your best visual estimate for the tracked player (skating speeds in km/h, distance in meters, count the puck touches you can see). Never leave metrics out. Only fill shotSpeedKph, shotTechniqueScore and shotTechniqueNote if the tracked player visibly shoots; otherwise set all three to null.`;
+For metrics, give your best visual estimate for the tracked player (skating speeds in km/h, distance in meters, count the puck touches you can see). Never leave metrics out. Only fill shotSpeedKph, shotTechniqueScore and shotTechniqueNote if the tracked player visibly shoots; otherwise set all three to null. shotStyle: quick = snap/wrist shots with fast release, power = full wind-up slap shots, hybrid = a mix; null if no shot. stance: how much knee bend the tracked player skates with; null if you cannot tell.`;
 
 
 export type AnalysisArgs = Parameters<typeof buildAnalysisPrompt>;
@@ -242,6 +248,7 @@ export function parseAnalysis(text: string, shifts?: Array<{ start: number; end:
           movementNote: String(parsed.metrics.movementNote ?? ""),
           tendencyNote: String(parsed.metrics.tendencyNote ?? ""),
           ...parseShot(parsed.metrics),
+          ...parseGearHints(parsed.metrics),
         }
       : null,
   };
@@ -256,4 +263,14 @@ export function parseShot(m: Record<string, unknown>) {
     shotTechniqueScore: score > 0 ? Math.min(100, score) : null,
     shotTechniqueNote: typeof m["shotTechniqueNote"] === "string" ? m["shotTechniqueNote"] : null,
   };
+}
+
+/** Gear hints from the clip; anything unexpected becomes null. */
+export function parseGearHints(m: Record<string, unknown>) {
+  const style = m["shotStyle"];
+  const stance = m["stance"];
+  return {
+    shotStyle: style === "quick" || style === "hybrid" || style === "power" ? style : null,
+    stance: stance === "upright" || stance === "medium" || stance === "crouched" ? stance : null,
+  } as const;
 }

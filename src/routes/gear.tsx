@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useSuspenseQuery, useQuery, queryOptions } from "@tanstack/react-query";
+import { listAnalyses } from "@/lib/analysis.functions";
+import { gearHintsFromClips } from "@/lib/clip-gear";
 import { ArrowRight, Ruler, Sparkles } from "lucide-react";
 import { PageShell } from "@/components/AppNav";
 import { listPlayers } from "@/lib/players.functions";
@@ -108,6 +110,21 @@ function GearPage() {
   const [autoHip, setAutoHip] = useState(true);
   const [hipHeightCm, setHipHeightCm] = useState(estimateHipHeight(183, "medium"));
 
+  const analyses = useQuery({ queryKey: ["analyses"], queryFn: () => listAnalyses() });
+  const hints = useMemo(() => gearHintsFromClips(analyses.data?.items ?? []), [analyses.data]);
+  useEffect(() => {
+    if (hints.style) setStyle(hints.style.value);
+    if (hints.stance) setStance(hints.stance.value);
+  }, [hints.style?.value, hints.stance?.value]);
+  const clipNote = (h: { value: string; clips: number } | null, cur: string) =>
+    h ? (
+      <p className="mt-1 text-xs text-primary">
+        {h.value === cur ? "From your clips" : "Your clips suggest " + h.value} ({h.clips} clip{h.clips > 1 ? "s" : ""}) — change it if it looks wrong.
+      </p>
+    ) : (
+      <p className="mt-1 text-xs text-muted-foreground">Not seen in your clips yet — pick it yourself.</p>
+    );
+
   const effectiveHip = autoHip ? estimateHipHeight(heightCm, stance) : hipHeightCm;
 
   const [currentKick, setCurrentKick] = useState("");
@@ -184,6 +201,7 @@ function GearPage() {
                   </option>
                 ))}
               </select>
+              {clipNote(hints.stance, stance)}
             </Field>
 
             <div className="rounded-xl border border-border p-4">
@@ -216,7 +234,7 @@ function GearPage() {
                 />
               )}
               <p className="mt-2 text-xs text-muted-foreground">
-                Measure floor-to-hip while the player is in their normal skating crouch for the most accurate cut.
+                Video can't measure this. Use a tape measure: floor to hip while in your normal skating crouch, in skates.
               </p>
             </div>
 
@@ -228,6 +246,7 @@ function GearPage() {
                   </option>
                 ))}
               </select>
+              {clipNote(hints.style, style)}
             </Field>
 
             <div className="grid grid-cols-2 gap-3">

@@ -16,6 +16,8 @@ export type ClipMetrics = {
   shotSpeedKph?: number | null;
   shotTechniqueScore?: number | null;
   shotTechniqueNote?: string | null;
+  shotStyle?: "quick" | "hybrid" | "power" | null;
+  stance?: "upright" | "medium" | "crouched" | null;
 };
 
 export type AnalysisRecord = {
