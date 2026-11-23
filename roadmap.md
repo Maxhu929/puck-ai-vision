@@ -19,3 +19,5 @@
 - [ ] Complete user-confirmed crossing labels and a real SAM 2 coaching submission — blocked by wrong-player tracking on the tested clip and required user approval; more crowded clips are needed to assess general reliability.
 - [x] Remove the Compare page: nav, home tile, sitemap, llms.txt and the page itself; /compare now 404s.
 - [ ] Decide a replacement way to compare players that works with short reviewed clips.
+
+- [ ] Nutrition: simple page with pre/post-game food & drink and daily calories from goal, height, weight
