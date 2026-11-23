@@ -8,7 +8,6 @@ const links = [
   { to: "/", label: "Home" },
   { to: "/upload", label: "Upload" },
   { to: "/feedback", label: "Feedback" },
-  { to: "/statistics", label: "Statistics" },
   { to: "/leaderboard", label: "Leaderboard" },
   { to: "/nhl-compare", label: "vs NHL" },
   { to: "/nutrition", label: "Nutrition" },

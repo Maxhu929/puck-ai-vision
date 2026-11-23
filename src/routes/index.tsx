@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Upload, MessageSquare, BarChart3, Trophy } from "lucide-react";
+import { Upload, MessageSquare, Trophy } from "lucide-react";
 import heroImage from "@/assets/hockey-hero.jpg";
 import { AppNav } from "@/components/AppNav";
 import { recentSubmissions } from "@/lib/hockey-data";
 
 const title = "Hockey Video Analyzer — AI Game Film Breakdown";
 const description =
-  "Upload hockey game footage and get AI feedback, per-shift grades, personal bests, and clip-by-clip statistics.";
+  "Upload hockey game footage and get AI feedback with timestamped notes, grades, and drill suggestions.";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -31,7 +31,6 @@ const stats = [
 const tiles = [
   { to: "/upload", icon: Upload, title: "Upload", desc: "Add game footage", className: "text-ice" },
   { to: "/feedback", icon: MessageSquare, title: "Feedback", desc: "Review & annotate", className: "text-turf" },
-  { to: "/statistics", icon: BarChart3, title: "Statistics", desc: "Performance metrics", className: "text-gold" },
 ] as const;
 
 function Index() {

@@ -19,7 +19,6 @@ import { Route as NhlCompareRouteImport } from './routes/nhl-compare'
 import { Route as NutritionRouteImport } from './routes/nutrition'
 import { Route as SamTrialRouteImport } from './routes/sam-trial'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as StatisticsRouteImport } from './routes/statistics'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
@@ -78,11 +77,6 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StatisticsRoute = StatisticsRouteImport.update({
-  id: '/statistics',
-  path: '/statistics',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',
   path: '/upload',
@@ -134,7 +128,6 @@ export interface FileRoutesByFullPath {
   '/nutrition': typeof NutritionRoute
   '/sam-trial': typeof SamTrialRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/statistics': typeof StatisticsRoute
   '/upload': typeof UploadRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -154,7 +147,6 @@ export interface FileRoutesByTo {
   '/nutrition': typeof NutritionRoute
   '/sam-trial': typeof SamTrialRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/statistics': typeof StatisticsRoute
   '/upload': typeof UploadRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -175,7 +167,6 @@ export interface FileRoutesById {
   '/nutrition': typeof NutritionRoute
   '/sam-trial': typeof SamTrialRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/statistics': typeof StatisticsRoute
   '/upload': typeof UploadRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -197,7 +188,6 @@ export interface FileRouteTypes {
     | '/nutrition'
     | '/sam-trial'
     | '/sitemap.xml'
-    | '/statistics'
     | '/upload'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -217,7 +207,6 @@ export interface FileRouteTypes {
     | '/nutrition'
     | '/sam-trial'
     | '/sitemap.xml'
-    | '/statistics'
     | '/upload'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -237,7 +226,6 @@ export interface FileRouteTypes {
     | '/nutrition'
     | '/sam-trial'
     | '/sitemap.xml'
-    | '/statistics'
     | '/upload'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -258,7 +246,6 @@ export interface RootRouteChildren {
   NutritionRoute: typeof NutritionRoute
   SamTrialRoute: typeof SamTrialRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  StatisticsRoute: typeof StatisticsRoute
   UploadRoute: typeof UploadRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -340,13 +327,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/statistics': {
-      id: '/statistics'
-      path: '/statistics'
-      fullPath: '/statistics'
-      preLoaderRoute: typeof StatisticsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/upload': {
       id: '/upload'
       path: '/upload'
@@ -410,7 +390,6 @@ const rootRouteChildren: RootRouteChildren = {
   NutritionRoute: NutritionRoute,
   SamTrialRoute: SamTrialRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  StatisticsRoute: StatisticsRoute,
   UploadRoute: UploadRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:

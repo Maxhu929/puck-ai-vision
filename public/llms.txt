@@ -1,11 +1,10 @@
 # Hockey Video Analyzer
 
-> AI breakdown of hockey game film: upload footage, get timestamped feedback, grades, and advanced statistics.
+> AI breakdown of hockey game film: upload footage, get timestamped feedback, grades, and drill suggestions.
 
 ## Pages
 
 - [Home](/): Overview, stats, and recent submissions.
 - [Upload](/upload): Add game footage for AI analysis.
 - [Feedback](/feedback): Timestamped AI notes, category ratings, and overall grade.
-- [Statistics](/statistics): Key metrics, grade trend, and shot heat map.
 - [Leaderboard](/leaderboard): Player rankings by AI grade with profiles.
