@@ -22,3 +22,5 @@
 
 - [x] Nutrition: simple page with pre/post-game food & drink and daily calories from goal, height, weight
 - [x] Require player reboxing every one second in logged shifts, remove checkpoint skipping, and test timing rules.
+- [ ] Friend on shared preview link cannot send clip to AI: send-to-AI requires an app account (requireSupabaseAuth); friend must sign up in the app. Revisit if shared-link grading for guests is wanted.
+- [ ] Buy hockeymaxxing.app domain — purchase card was cancelled before running; user to re-confirm.
